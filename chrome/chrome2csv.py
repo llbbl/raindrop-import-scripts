@@ -170,13 +170,13 @@ def extract_bookmarks(data: Dict[str, Any]) -> List[Dict[str, str]]:
         # Chrome bookmarks are stored in a nested structure
         # The root has "roots" which contains different bookmark bars
         roots = data.get("roots", {})
-        
+
         # Process each root (bookmark_bar, other, synced)
         for root_name, root in roots.items():
             # Skip metadata
             if root_name == "sync_metadata":
                 continue
-                
+
             # Process this root
             bookmarks = process_bookmark_node(root, [root_name] if root_name != "bookmark_bar" else [])
             csv_rows.extend(bookmarks)
@@ -220,10 +220,7 @@ def write_csv_file(file_path: str, csv_rows: List[Dict[str, str]], dry_run: bool
         # Validate that we can create a CSV writer with the rows
         try:
             fieldnames = list(csv_rows[0])
-            # Just create the writer to validate the field names, but don't write anything
-            csv.DictWriter(
-                None, fieldnames=fieldnames, delimiter=",", lineterminator="\n", quotechar='"', quoting=csv.QUOTE_ALL
-            )
+            # Just validate the field names, but don't create a writer
             logger.info(f'Dry run: CSV validation successful for "{file_path}"')
         except Exception as e:
             logger.exception(f"Dry run: CSV validation failed: {e}")

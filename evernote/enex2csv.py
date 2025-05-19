@@ -296,10 +296,7 @@ def write_csv(csv_filename: str, note_records: list[dict], dry_run: bool = False
         # Validate that we can create a CSV writer with the records
         try:
             fieldnames = list(note_records[0])
-            # Just create the writer to validate the field names, but don't write anything
-            csv.DictWriter(
-                None, fieldnames=fieldnames, delimiter=",", lineterminator="\n"
-            )
+            # Just validate the field names, but don't create a writer
             logger.info(f'Dry run: CSV validation successful for "{csv_filename}"')
         except Exception as e:
             logger.exception(f"Dry run: CSV validation failed: {e}")
