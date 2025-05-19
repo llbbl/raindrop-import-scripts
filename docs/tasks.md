@@ -36,14 +36,13 @@ This document contains a prioritized list of actionable tasks to improve the rai
 
 - [x] Add unit tests for all modules
 - [x] Add integration tests for end-to-end workflows
-- [ ] Document how to setup a CI/CD pipeline with GitHub Actions and JetBrains Pipelines
-- [ ] Add code coverage reporting
-- [ ] Implement pre-commit hooks for code formatting and linting
+- [x] Document how to setup a CI/CD pipeline with GitHub Actions and JetBrains Pipelines
+- [x] Add code coverage reporting
 - [x] Add sample files for testing
 
 ## Feature Enhancements
 
-- [ ] Add support for additional import sources (Chrome bookmarks, Firefox bookmarks)
+- [x] Add support for additional import sources (Chrome bookmarks, Firefox bookmarks)
 - [ ] Implement direct API import to Raindrop.io
 - [ ] Add support for batch processing multiple files
 - [ ] Implement filtering options for imports (by tag, date, etc.)

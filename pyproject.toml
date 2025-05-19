@@ -18,6 +18,10 @@ pyyaml = "^6.0.2"
 pytest = "^8.3.5"
 pytest-cov = "^6.1.1"
 
+[tool.poetry.scripts]
+test = "pytest"
+test-cov = "pytest --cov=. --cov-report=xml --cov-report=term"
+
 
 
 [build-system]

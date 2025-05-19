@@ -10,6 +10,12 @@ This document provides detailed usage examples for the import scripts included i
 - [Pocket Import](#pocket-import)
   - [Command-line Options](#pocket-command-line-options)
   - [Examples](#pocket-examples)
+- [Chrome Bookmarks Import](#chrome-bookmarks-import)
+  - [Command-line Options](#chrome-command-line-options)
+  - [Examples](#chrome-examples)
+- [Firefox Bookmarks Import](#firefox-bookmarks-import)
+  - [Command-line Options](#firefox-command-line-options)
+  - [Examples](#firefox-examples)
 - [Importing into Raindrop.io](#importing-into-raindropio)
 - [Troubleshooting](#troubleshooting)
 
@@ -100,6 +106,92 @@ python pocket/pocket2csv.py --input-file ril_export.html --output-file pocket.cs
 **Using a different input file name:**
 ```bash
 python pocket/pocket2csv.py --input-file pocket_export.html --output-file pocket.csv
+```
+
+## Chrome Bookmarks Import
+
+The Chrome bookmarks import script (`chrome/chrome2csv.py`) converts Chrome bookmarks JSON export files to CSV format that can be imported into Raindrop.io.
+
+### Chrome Command-line Options
+
+```
+usage: chrome2csv.py [-h] --input-file JSONFILE --output-file CSVFILE [--log-file LOGFILE] [--dry-run]
+
+Convert Chrome bookmarks JSON file to CSV
+
+options:
+  -h, --help            show this help message and exit
+  --input-file JSONFILE
+                        Input JSON file path (typically 'Bookmarks' file from Chrome)
+  --output-file CSVFILE
+                        Output CSV file path
+  --log-file LOGFILE    Log file path (optional)
+  --dry-run             Validate without writing files
+```
+
+### Chrome Examples
+
+**Basic conversion:**
+```bash
+python chrome/chrome2csv.py --input-file Bookmarks --output-file chrome.csv
+```
+
+**Using a different input file name:**
+```bash
+python chrome/chrome2csv.py --input-file chrome_bookmarks.json --output-file chrome.csv
+```
+
+**With logging to a file:**
+```bash
+python chrome/chrome2csv.py --input-file Bookmarks --output-file chrome.csv --log-file chrome_import.log
+```
+
+**Dry run (validate without writing files):**
+```bash
+python chrome/chrome2csv.py --input-file Bookmarks --output-file chrome.csv --dry-run
+```
+
+## Firefox Bookmarks Import
+
+The Firefox bookmarks import script (`firefox/firefox2csv.py`) converts Firefox bookmarks JSON export files to CSV format that can be imported into Raindrop.io.
+
+### Firefox Command-line Options
+
+```
+usage: firefox2csv.py [-h] --input-file JSONFILE --output-file CSVFILE [--log-file LOGFILE] [--dry-run]
+
+Convert Firefox bookmarks JSON file to CSV
+
+options:
+  -h, --help            show this help message and exit
+  --input-file JSONFILE
+                        Input JSON file path (exported from Firefox bookmarks)
+  --output-file CSVFILE
+                        Output CSV file path
+  --log-file LOGFILE    Log file path (optional)
+  --dry-run             Validate without writing files
+```
+
+### Firefox Examples
+
+**Basic conversion:**
+```bash
+python firefox/firefox2csv.py --input-file bookmarks-2023-05-18.json --output-file firefox.csv
+```
+
+**Using a different input file name:**
+```bash
+python firefox/firefox2csv.py --input-file firefox_bookmarks.json --output-file firefox.csv
+```
+
+**With logging to a file:**
+```bash
+python firefox/firefox2csv.py --input-file bookmarks-2023-05-18.json --output-file firefox.csv --log-file firefox_import.log
+```
+
+**Dry run (validate without writing files):**
+```bash
+python firefox/firefox2csv.py --input-file bookmarks-2023-05-18.json --output-file firefox.csv --dry-run
 ```
 
 ## Importing into Raindrop.io
