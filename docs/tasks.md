@@ -16,12 +16,12 @@ This document contains a prioritized list of actionable tasks to improve the rai
 
 - [x] Fix bug in enex2csv.py: `if len(records) < 0:` should be `if len(records) <= 0:`
 - [x] Complete the docstring for convert_html() in pocket2csv.py
-- [ ] Add type hints to all functions for better code readability and IDE support
-- [ ] Implement consistent error handling across all scripts
-- [ ] Add input validation for command line arguments
-- [ ] Add proper exception handling for file operations
-- [ ] Implement logging to file option in addition to console output
-- [ ] Add progress indicators for long-running operations
+- [x] Add type hints to all functions for better code readability and IDE support
+- [x] Implement consistent error handling across all scripts
+- [x] Add input validation for command line arguments
+- [x] Add proper exception handling for file operations
+- [x] Implement logging to file option in addition to console output
+- [x] Add progress indicators for long-running operations
 
 ## Architecture Improvements
 
