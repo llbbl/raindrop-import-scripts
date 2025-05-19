@@ -512,136 +512,6 @@ class PocketConverter:
         self.convert_html(parsed_args)
 
 
-def extract_bookmarks(
-    soup: BeautifulSoup,
-    filter_tag: Optional[str] = None,
-    filter_date_from: Optional[str] = None,
-    filter_date_to: Optional[str] = None,
-    filter_title: Optional[str] = None,
-    filter_url: Optional[str] = None,
-    chunk_size: int = 1000
-) -> list[dict[str, str]]:
-    """
-    Extract bookmarks from parsed HTML with optional filtering.
-
-    Parameters
-    ----------
-    soup : BeautifulSoup
-        Parsed HTML content.
-    filter_tag : str, optional
-        Filter bookmarks by tag (comma-separated list for multiple tags).
-    filter_date_from : str, optional
-        Filter bookmarks created on or after this date (format: YYYY-MM-DD).
-    filter_date_to : str, optional
-        Filter bookmarks created on or before this date (format: YYYY-MM-DD).
-    filter_title : str, optional
-        Filter bookmarks by title (case-insensitive substring match).
-    filter_url : str, optional
-        Filter bookmarks by URL (case-insensitive substring match).
-    chunk_size : int, optional
-        Number of bookmarks to process at a time (default: 1000).
-        Helps optimize memory usage for large import files.
-
-    Returns
-    -------
-    list[dict[str, str]]
-        Extracted bookmarks that match the filter criteria.
-    """
-    converter = PocketConverter(logger)
-    return converter.extract_bookmarks(
-        soup,
-        filter_tag=filter_tag,
-        filter_date_from=filter_date_from,
-        filter_date_to=filter_date_to,
-        filter_title=filter_title,
-        filter_url=filter_url,
-        chunk_size=chunk_size
-    )
-
-
-
-
-def write_csv_file(
-    file_path: str, 
-    csv_rows: List[Dict[str, str]], 
-    field_mappings: Optional[Dict[str, str]] = None, 
-    preview: bool = False,
-    preview_limit: int = 10,
-    dry_run: bool = False,
-    chunk_size: int = 1000
-) -> None:
-    """
-    Write CSV file with optional field mapping and preview.
-
-    Parameters
-    ----------
-    file_path : str
-        CSV file path.
-    csv_rows : List[Dict[str, str]]
-        Rows to write to the CSV file.
-    field_mappings : Dict[str, str], optional
-        Dictionary mapping source fields to target fields.
-    preview : bool, optional
-        If True, preview the items that will be imported.
-    preview_limit : int, optional
-        Maximum number of items to preview (default: 10).
-    dry_run : bool, optional
-        If True, validate the rows but don't write to the file.
-    chunk_size : int, optional
-        Number of rows to write at a time (default: 1000).
-        Helps optimize memory usage for very large files.
-
-    Returns
-    -------
-    None
-        The function writes directly to the output file and doesn't return a value.
-    """
-    converter = PocketConverter(logger)
-    converter.write_csv_file(
-        file_path, 
-        csv_rows, 
-        field_mappings, 
-        preview=preview,
-        preview_limit=preview_limit,
-        dry_run=dry_run,
-        chunk_size=chunk_size
-    )
-
-
-def convert_html(args: argparse.Namespace) -> None:
-    """
-    Convert Pocket HTML file to CSV format for Raindrop.io import.
-
-    This function reads a Pocket HTML export file, extracts bookmark information
-    (URL, title, tags, creation date), and writes it to a CSV file in a format
-    compatible with Raindrop.io's import functionality.
-
-    Parameters
-    ----------
-    args : argparse.Namespace
-        Command line arguments containing input_file and output_file paths.
-
-    Returns
-    -------
-    None
-        The function writes directly to the output file and doesn't return a value.
-    """
-    global logger
-    # Initialize logger if it's not already initialized
-    if logger is None:
-        try:
-            logger = get_logger()
-        except RuntimeError:
-            # If setup_logging hasn't been called yet, call it now
-            setup_logging()
-            logger = get_logger()
-
-    converter = PocketConverter(logger)
-    converter.convert_html(args)
-
-
-
-
 def main() -> None:
     """
     Main entry point for the script.
@@ -653,17 +523,13 @@ def main() -> None:
     None
     """
     global logger
-    # Parse command line arguments
-    args = sys.argv[1:]
-    parsed_args = parse_command_line_args(args)
-
-    # Set up logging
-    setup_logging(parsed_args.log_file)
+    # Set up logging first
+    setup_logging()
     logger = get_logger()
 
     # Create converter and run
     converter = PocketConverter(logger)
-    converter.convert_html(parsed_args)
+    converter.run()
 
 
 if __name__ == "__main__":

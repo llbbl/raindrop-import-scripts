@@ -47,21 +47,17 @@ This document contains a prioritized list of actionable tasks to improve the rai
 - [x] Implement filtering options for imports (by tag, date, etc.)
 - [x] Add support for custom CSV field mapping
 - [x] Implement a preview mode to see what will be imported
-- [ ] Refactor existing Python script pocket2csv.py to an object-oriented design:
+- [x] Refactor existing Python script pocket2csv.py to an object-oriented design:
   - Convert procedural scripts into classes
-  - Convert common utility functions into classes where it makes sense
   - Update associated unit tests to align with the new object-oriented structure.
 - [ ] Refactor existing Python script firefox2csv.py to an object-oriented design:
   - Convert procedural scripts into classes
-  - Convert common utility functions into classes where it makes sense
   - Update associated unit tests to align with the new object-oriented structure.
 - [ ] Refactor existing Python script enex2csv.py to an object-oriented design:
   - Convert procedural scripts into classes
-  - Convert common utility functions into classes where it makes sense
   - Update associated unit tests to align with the new object-oriented structure.
 - [ ] Refactor existing Python script chrome2csv.py to an object-oriented design:
   - Convert procedural scripts into classes
-  - Convert common utility functions into classes where it makes sense
   - Update associated unit tests to align with the new object-oriented structure.
 
 ## Performance and Scalability
