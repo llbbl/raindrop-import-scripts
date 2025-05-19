@@ -34,12 +34,12 @@ This document contains a prioritized list of actionable tasks to improve the rai
 
 ## Testing and Quality Assurance
 
-- [ ] Add unit tests for all modules
-- [ ] Add integration tests for end-to-end workflows
+- [x] Add unit tests for all modules
+- [x] Add integration tests for end-to-end workflows
 - [ ] Document how to setup a CI/CD pipeline with GitHub Actions and JetBrains Pipelines
 - [ ] Add code coverage reporting
 - [ ] Implement pre-commit hooks for code formatting and linting
-- [ ] Add sample files for testing
+- [x] Add sample files for testing
 
 ## Feature Enhancements
 
