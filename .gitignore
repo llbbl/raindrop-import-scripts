@@ -8,3 +8,7 @@
 coverage.xml
 htmlcov/
 .output.txt
+
+#ENV
+raindrop_import.yaml
+.env

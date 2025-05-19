@@ -5,12 +5,19 @@ Unified CLI for importing data into Raindrop.io.
 This script provides a unified command-line interface for importing data from various
 sources into Raindrop.io. It uses a plugin architecture to support multiple import sources.
 
+Configuration can be provided via command-line arguments, a YAML configuration file,
+or environment variables in a .env file. The order of precedence is:
+1. Command-line arguments
+2. Configuration file (YAML)
+3. Environment variables (.env file)
+
 Usage:
     raindrop_import.py [-h] {source} ...
 
-Example:
+Examples:
     raindrop_import.py evernote --input-file export.enex --output-file evernote.csv --use-markdown
     raindrop_import.py pocket --input-file ril_export.html --output-file pocket.csv
+    raindrop_import.py raindrop-api --api-token YOUR_API_TOKEN --input-file bookmarks.csv --collection-id 0
 """
 
 import argparse
