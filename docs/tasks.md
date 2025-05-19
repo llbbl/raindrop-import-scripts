@@ -46,7 +46,7 @@ This document contains a prioritized list of actionable tasks to improve the rai
 - [x] Implement direct API import to Raindrop.io
 - [x] Implement filtering options for imports (by tag, date, etc.)
 - [x] Add support for custom CSV field mapping
-- [ ] Implement a preview mode to see what will be imported
+- [x] Implement a preview mode to see what will be imported
 - [ ] Refactor existing Python scripts to an object-oriented design:
   - Convert procedural scripts into classes
   - Convert common utility functions into classes where it makes sense

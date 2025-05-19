@@ -36,6 +36,7 @@ from common.cli import create_base_parser, parse_args
 from common.logging import setup_logging, get_logger
 from common.validation import validate_input_file, validate_output_file
 from common.field_mapping import apply_field_mappings, map_rows
+from common.preview import preview_items
 
 logger = None
 
@@ -365,9 +366,16 @@ def extract_note_records(
         return []
 
 
-def write_csv(csv_filename: str, note_records: List[Dict], field_mappings: Optional[Dict[str, str]] = None, dry_run: bool = False) -> None:
+def write_csv(
+    csv_filename: str, 
+    note_records: List[Dict], 
+    field_mappings: Optional[Dict[str, str]] = None, 
+    preview: bool = False,
+    preview_limit: int = 10,
+    dry_run: bool = False
+) -> None:
     """
-    Write parsed note records as CSV with optional field mapping.
+    Write parsed note records as CSV with optional field mapping and preview.
 
     Parameters
     ----------
@@ -377,6 +385,10 @@ def write_csv(csv_filename: str, note_records: List[Dict], field_mappings: Optio
         Extracted note records.
     field_mappings : Dict[str, str], optional
         Dictionary mapping source fields to target fields.
+    preview : bool, optional
+        If True, preview the items that will be imported.
+    preview_limit : int, optional
+        Maximum number of items to preview (default: 10).
     dry_run : bool, optional
         If True, validate the records but don't write to the file.
 
@@ -391,6 +403,19 @@ def write_csv(csv_filename: str, note_records: List[Dict], field_mappings: Optio
         mapped_records = map_rows(note_records, field_mappings)
     else:
         mapped_records = note_records
+
+    # Show preview if requested
+    if preview:
+        logger.info("Previewing items that will be imported:")
+        preview_items(
+            mapped_records,
+            limit=preview_limit,
+            title_field="title",
+            url_field="url",
+            tags_field="tags",
+            created_field="created",
+            description_field="description" if "description" in (mapped_records[0] if mapped_records else {}) else None
+        )
 
     if dry_run:
         logger.info(f'Dry run: would write {len(mapped_records)} records to "{csv_filename}"')
@@ -478,6 +503,12 @@ def convert_enex(parsed_args: argparse.Namespace) -> None:
     if dry_run:
         logger.info("Dry run mode enabled: validating without writing files")
 
+    # Check if preview mode is enabled
+    preview = getattr(parsed_args, 'preview', False)
+    preview_limit = getattr(parsed_args, 'preview_limit', 10)
+    if preview:
+        logger.info(f"Preview mode enabled: showing up to {preview_limit} items")
+
     # Get field mappings
     field_mappings = apply_field_mappings(parsed_args)
 
@@ -494,7 +525,14 @@ def convert_enex(parsed_args: argparse.Namespace) -> None:
             if source != target:
                 logger.info(f"  - {source} -> {target}")
 
-    write_csv(parsed_args.output_file, records, field_mappings, dry_run)
+    write_csv(
+        parsed_args.output_file, 
+        records, 
+        field_mappings, 
+        preview=preview,
+        preview_limit=preview_limit,
+        dry_run=dry_run
+    )
 
 
 def main() -> None:

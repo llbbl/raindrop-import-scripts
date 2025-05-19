@@ -277,6 +277,19 @@ def write_csv_file(
     else:
         mapped_rows = csv_rows
 
+    # Show preview if requested
+    if preview:
+        logger.info("Previewing items that will be imported:")
+        preview_items(
+            mapped_rows,
+            limit=preview_limit,
+            title_field="title",
+            url_field="url",
+            tags_field="tags",
+            created_field="created",
+            description_field="description" if "description" in (mapped_rows[0] if mapped_rows else {}) else None
+        )
+
     if dry_run:
         logger.info(f'Dry run: would write {len(mapped_rows)} rows to "{file_path}"')
         # Validate that we can create a CSV writer with the rows
@@ -379,6 +392,12 @@ def convert_html(args: argparse.Namespace) -> None:
     if dry_run:
         logger.info("Dry run mode enabled: validating without writing files")
 
+    # Check if preview mode is enabled
+    preview = getattr(args, 'preview', False)
+    preview_limit = getattr(args, 'preview_limit', 10)
+    if preview:
+        logger.info(f"Preview mode enabled: showing up to {preview_limit} items")
+
     # Get field mappings
     field_mappings = apply_field_mappings(args)
 
@@ -396,7 +415,14 @@ def convert_html(args: argparse.Namespace) -> None:
                 logger.info(f"  - {source} -> {target}")
 
     # Write output file
-    write_csv_file(args.output_file, csv_rows, field_mappings, dry_run)
+    write_csv_file(
+        args.output_file, 
+        csv_rows, 
+        field_mappings, 
+        preview=preview,
+        preview_limit=preview_limit,
+        dry_run=dry_run
+    )
 
     if dry_run:
         logger.info(f"Dry run: successfully validated {len(csv_rows)} bookmarks")

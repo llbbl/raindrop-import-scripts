@@ -31,6 +31,8 @@ from typing import Dict, List, Any, Optional
 from common.cli import create_base_parser, parse_args
 from common.logging import setup_logging, get_logger
 from common.validation import validate_input_file, validate_output_file
+from common.field_mapping import apply_field_mappings, map_rows
+from common.preview import preview_items
 
 logger = None
 
@@ -193,9 +195,16 @@ def extract_bookmarks(data: Dict[str, Any]) -> List[Dict[str, str]]:
     return csv_rows
 
 
-def write_csv_file(file_path: str, csv_rows: List[Dict[str, str]], dry_run: bool = False) -> None:
+def write_csv_file(
+    file_path: str, 
+    csv_rows: List[Dict[str, str]], 
+    field_mappings: Optional[Dict[str, str]] = None,
+    preview: bool = False,
+    preview_limit: int = 10,
+    dry_run: bool = False
+) -> None:
     """
-    Write CSV file.
+    Write CSV file with optional field mapping and preview.
 
     Parameters
     ----------
@@ -203,6 +212,12 @@ def write_csv_file(file_path: str, csv_rows: List[Dict[str, str]], dry_run: bool
         CSV file path.
     csv_rows : List[Dict[str, str]]
         Rows to write to the CSV file.
+    field_mappings : Dict[str, str], optional
+        Dictionary mapping source fields to target fields.
+    preview : bool, optional
+        If True, preview the items that will be imported.
+    preview_limit : int, optional
+        Maximum number of items to preview (default: 10).
     dry_run : bool, optional
         If True, validate the rows but don't write to the file.
 
@@ -215,13 +230,35 @@ def write_csv_file(file_path: str, csv_rows: List[Dict[str, str]], dry_run: bool
         logger.error("No bookmarks to write")
         return
 
+    # Apply field mappings if provided
+    if field_mappings:
+        logger.info("Applying field mappings to CSV rows")
+        mapped_rows = map_rows(csv_rows, field_mappings)
+    else:
+        mapped_rows = csv_rows
+
+    # Show preview if requested
+    if preview:
+        logger.info("Previewing items that will be imported:")
+        preview_items(
+            mapped_rows,
+            limit=preview_limit,
+            title_field="title",
+            url_field="url",
+            tags_field="tags",
+            created_field="created",
+            description_field="description" if "description" in (mapped_rows[0] if mapped_rows else {}) else None
+        )
+
     if dry_run:
-        logger.info(f'Dry run: would write {len(csv_rows)} rows to "{file_path}"')
+        logger.info(f'Dry run: would write {len(mapped_rows)} rows to "{file_path}"')
         # Validate that we can create a CSV writer with the rows
         try:
-            fieldnames = list(csv_rows[0])
+            fieldnames = list(mapped_rows[0])
             # Just validate the field names, but don't create a writer
             logger.info(f'Dry run: CSV validation successful for "{file_path}"')
+            if field_mappings:
+                logger.info(f'Dry run: Field mappings applied: {field_mappings}')
         except Exception as e:
             logger.exception(f"Dry run: CSV validation failed: {e}")
             raise
@@ -277,8 +314,37 @@ def convert_json(args: argparse.Namespace) -> None:
     if dry_run:
         logger.info("Dry run mode enabled: validating without writing files")
 
+    # Check if preview mode is enabled
+    preview = getattr(args, 'preview', False)
+    preview_limit = getattr(args, 'preview_limit', 10)
+    if preview:
+        logger.info(f"Preview mode enabled: showing up to {preview_limit} items")
+
+    # Get field mappings
+    field_mappings = apply_field_mappings(args)
+
+    # Log field mappings if any are set
+    if field_mappings and field_mappings != {
+        "title": "title",
+        "url": "url",
+        "tags": "tags",
+        "created": "created",
+        "description": "description"
+    }:
+        logger.info("Using custom field mappings:")
+        for source, target in field_mappings.items():
+            if source != target:
+                logger.info(f"  - {source} -> {target}")
+
     # Write output file
-    write_csv_file(args.output_file, csv_rows, dry_run)
+    write_csv_file(
+        args.output_file, 
+        csv_rows, 
+        field_mappings=field_mappings,
+        preview=preview,
+        preview_limit=preview_limit,
+        dry_run=dry_run
+    )
 
     if dry_run:
         logger.info(f"Dry run: successfully validated {len(csv_rows)} bookmarks")

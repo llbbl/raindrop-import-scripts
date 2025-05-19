@@ -52,6 +52,17 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
         action="store_true",
         help="Validate imports without writing files",
     )
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="Preview items that will be imported",
+    )
+    parser.add_argument(
+        "--preview-limit",
+        type=int,
+        default=10,
+        help="Maximum number of items to preview (default: 10)",
+    )
     return parser
 
 
