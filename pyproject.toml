@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "raindrop-import-scripts"
+version = "0.1.0"
+description = ""
+authors = ["llbbl <logan@llbbl.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+python-dateutil = "^2.9.0.post0"
+lxml = "^5.4.0"
+html2text = "^2025.4.15"
+bs4 = "^0.0.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
