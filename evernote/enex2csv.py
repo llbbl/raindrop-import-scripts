@@ -66,9 +66,9 @@ def parse_command_line_args(args: list[str]) -> argparse.Namespace:
     return parse_args(parser, args)
 
 
-def read_enex(enex_filename: str) -> etree.ElementTree:
+def read_enex_file(enex_filename: str) -> str:
     """
-    Parse ENEX file as XML.
+    Read ENEX file content.
 
     Parameters
     ----------
@@ -77,18 +77,40 @@ def read_enex(enex_filename: str) -> etree.ElementTree:
 
     Returns
     -------
+    str
+        ENEX file content.
+    """
+    logger.info(f'Reading input file "{enex_filename}"')
+    try:
+        with open(enex_filename, "r", encoding="utf-8") as enex_fd:
+            return enex_fd.read()
+    except Exception:
+        logger.exception(f"Failed to read ENEX file: {enex_filename}")
+        raise
+
+
+def parse_enex(enex_content: str) -> etree.ElementTree:
+    """
+    Parse ENEX content as XML.
+
+    Parameters
+    ----------
+    enex_content : str
+        ENEX file content.
+
+    Returns
+    -------
     etree.ElementTree
         Parsed XML tree.
     """
-    logger.info(f'Parsing input file "{enex_filename}"')
-    with open(enex_filename, "r", encoding="utf-8") as enex_fd:
-        try:
-            xml_parser = etree.XMLParser(huge_tree=True, resolve_entities=False)
-            xml_tree = etree.parse(enex_fd, xml_parser)
-            return xml_tree
-        except Exception:
-            logger.exception("Failed to parse ENEX")
-            raise
+    logger.info("Parsing ENEX content")
+    try:
+        xml_parser = etree.XMLParser(huge_tree=True, resolve_entities=False)
+        xml_tree = etree.fromstring(enex_content.encode('utf-8'), xml_parser)
+        return etree.ElementTree(xml_tree)
+    except Exception:
+        logger.exception("Failed to parse ENEX")
+        raise
 
 
 def xpath_first_or_default(node: etree._Element, query: str, default: object, formatter: callable[[str], object] = None) -> object:
@@ -250,7 +272,7 @@ def extract_note_records(xml_tree: etree.ElementTree, use_markdown: bool) -> lis
         return []
 
 
-def write_csv(csv_filename: str, note_records: list[dict]) -> None:
+def write_csv(csv_filename: str, note_records: list[dict], dry_run: bool = False) -> None:
     """
     Write parsed note records as CSV.
 
@@ -260,12 +282,29 @@ def write_csv(csv_filename: str, note_records: list[dict]) -> None:
         Output CSV file path.
     note_records : list[dict]
         Extracted note records.
+    dry_run : bool, optional
+        If True, validate the records but don't write to the file.
 
     Returns
     -------
     None
         The function writes directly to the output file and doesn't return a value.
     """
+    if dry_run:
+        logger.info(f'Dry run: would write {len(note_records)} records to "{csv_filename}"')
+        # Validate that we can create a CSV writer with the records
+        try:
+            fieldnames = list(note_records[0])
+            # Just create the writer to validate the field names, but don't write anything
+            csv.DictWriter(
+                None, fieldnames=fieldnames, delimiter=",", lineterminator="\n"
+            )
+            logger.info(f'Dry run: CSV validation successful for "{csv_filename}"')
+        except Exception as e:
+            logger.exception(f"Dry run: CSV validation failed: {e}")
+            raise
+        return
+
     logger.info(f'Writing CSV output to "{csv_filename}"')
     try:
         with open(csv_filename, "w", encoding="utf-8") as csv_fd:
@@ -296,12 +335,19 @@ def convert_enex(parsed_args: argparse.Namespace) -> None:
     None
         The function processes files and doesn't return a value.
     """
-    xml_tree = read_enex(parsed_args.input_file)
+    enex_content = read_enex_file(parsed_args.input_file)
+    xml_tree = parse_enex(enex_content)
     records = extract_note_records(xml_tree, parsed_args.use_markdown)
     if len(records) <= 0:
         logger.error("No records found to convert")
         return
-    write_csv(parsed_args.output_file, records)
+
+    # Check if dry-run mode is enabled
+    dry_run = getattr(parsed_args, 'dry_run', False)
+    if dry_run:
+        logger.info("Dry run mode enabled: validating without writing files")
+
+    write_csv(parsed_args.output_file, records, dry_run)
 
 
 def main() -> None:

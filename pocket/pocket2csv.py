@@ -55,46 +55,71 @@ def parse_command_line_args(args: list[str]) -> argparse.Namespace:
     return parse_args(parser, args)
 
 
-def convert_html(args: argparse.Namespace) -> None:
+def read_html_file(file_path: str) -> str:
     """
-    Convert Pocket HTML file to CSV format for Raindrop.io import.
-
-    This function reads a Pocket HTML export file, extracts bookmark information
-    (URL, title, tags, creation date), and writes it to a CSV file in a format
-    compatible with Raindrop.io's import functionality.
+    Read HTML file content.
 
     Parameters
     ----------
-    args : argparse.Namespace
-        Command line arguments containing input_file and output_file paths.
+    file_path : str
+        HTML file path.
 
     Returns
     -------
-    None
-        The function writes directly to the output file and doesn't return a value.
+    str
+        HTML file content.
     """
-
-    csv_rows: list[dict[str, str]] = []
-
-    # Read input file
+    logger.info(f'Reading input file "{file_path}"')
     try:
-        with open(args.input_file, "r") as f:
-            html: str = f.read()
+        with open(file_path, "r") as f:
+            return f.read()
     except IOError:
-        logger.exception(f"Failed to read input file: {args.input_file}")
+        logger.exception(f"Failed to read input file: {file_path}")
         raise
     except Exception:
         logger.exception("Unexpected error while reading input file")
         raise
 
-    # Parse HTML
+
+def parse_html_content(html_content: str) -> BeautifulSoup:
+    """
+    Parse HTML content.
+
+    Parameters
+    ----------
+    html_content : str
+        HTML content to parse.
+
+    Returns
+    -------
+    BeautifulSoup
+        Parsed HTML content.
+    """
+    logger.info("Parsing HTML content")
     try:
-        soup: BeautifulSoup = BeautifulSoup(html, "html.parser")
+        return BeautifulSoup(html_content, "html.parser")
     except Exception:
         logger.exception("Failed to parse HTML")
         raise
 
-    # Extract bookmark data
+
+def extract_bookmarks(soup: BeautifulSoup) -> list[dict[str, str]]:
+    """
+    Extract bookmarks from parsed HTML.
+
+    Parameters
+    ----------
+    soup : BeautifulSoup
+        Parsed HTML content.
+
+    Returns
+    -------
+    list[dict[str, str]]
+        Extracted bookmarks.
+    """
+    logger.info("Extracting bookmarks")
+    csv_rows: list[dict[str, str]] = []
+
     try:
         # Get all list items (bookmarks)
         bookmarks = soup.find_all("li")
@@ -140,27 +165,100 @@ def convert_html(args: argparse.Namespace) -> None:
         logger.exception("Failed to extract bookmarks")
         raise
 
-    # Check if we have any bookmarks to write
-    if not csv_rows:
-        logger.error("No bookmarks found to convert")
+    return csv_rows
+
+
+def write_csv_file(file_path: str, csv_rows: list[dict[str, str]], dry_run: bool = False) -> None:
+    """
+    Write CSV file.
+
+    Parameters
+    ----------
+    file_path : str
+        CSV file path.
+    csv_rows : list[dict[str, str]]
+        Rows to write to the CSV file.
+    dry_run : bool, optional
+        If True, validate the rows but don't write to the file.
+
+    Returns
+    -------
+    None
+        The function writes directly to the output file and doesn't return a value.
+    """
+    if dry_run:
+        logger.info(f'Dry run: would write {len(csv_rows)} rows to "{file_path}"')
+        # Validate that we can create a CSV writer with the rows
+        try:
+            fieldnames = list(csv_rows[0])
+            # Just create the writer to validate the field names, but don't write anything
+            csv.DictWriter(
+                None, fieldnames=fieldnames, delimiter=",", lineterminator="\n", quotechar='"', quoting=csv.QUOTE_ALL
+            )
+            logger.info(f'Dry run: CSV validation successful for "{file_path}"')
+        except Exception as e:
+            logger.exception(f"Dry run: CSV validation failed: {e}")
+            raise
         return
 
-    # Write output file
+    logger.info(f'Writing CSV output to "{file_path}"')
     try:
-        with open(args.output_file, "w") as f:
+        with open(file_path, "w") as f:
             writer = csv.DictWriter(
                 f, fieldnames=list(csv_rows[0]), delimiter=",", lineterminator="\n", quotechar='"', quoting=csv.QUOTE_ALL
             )
             writer.writeheader()
             writer.writerows(csv_rows)
     except IOError:
-        logger.exception(f"Failed to write CSV to {args.output_file}")
+        logger.exception(f"Failed to write CSV to {file_path}")
         raise
     except Exception:
         logger.exception("Unexpected error while writing CSV")
         raise
 
-    logger.info(f"Successfully converted {len(csv_rows)} bookmarks to CSV")
+
+def convert_html(args: argparse.Namespace) -> None:
+    """
+    Convert Pocket HTML file to CSV format for Raindrop.io import.
+
+    This function reads a Pocket HTML export file, extracts bookmark information
+    (URL, title, tags, creation date), and writes it to a CSV file in a format
+    compatible with Raindrop.io's import functionality.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments containing input_file and output_file paths.
+
+    Returns
+    -------
+    None
+        The function writes directly to the output file and doesn't return a value.
+    """
+    # Read and parse HTML file
+    html_content = read_html_file(args.input_file)
+    soup = parse_html_content(html_content)
+
+    # Extract bookmarks
+    csv_rows = extract_bookmarks(soup)
+
+    # Check if we have any bookmarks to write
+    if not csv_rows:
+        logger.error("No bookmarks found to convert")
+        return
+
+    # Check if dry-run mode is enabled
+    dry_run = getattr(args, 'dry_run', False)
+    if dry_run:
+        logger.info("Dry run mode enabled: validating without writing files")
+
+    # Write output file
+    write_csv_file(args.output_file, csv_rows, dry_run)
+
+    if dry_run:
+        logger.info(f"Dry run: successfully validated {len(csv_rows)} bookmarks")
+    else:
+        logger.info(f"Successfully converted {len(csv_rows)} bookmarks to CSV")
 
 
 def main() -> None:
