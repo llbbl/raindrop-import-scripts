@@ -31,89 +31,11 @@ from html2text import HTML2Text
 from lxml import etree
 from tqdm import tqdm
 
+from common.cli import create_base_parser, parse_args
+from common.logging import setup_logging, get_logger
+from common.validation import validate_input_file, validate_output_file
+
 logger = None
-
-
-def setup_logging(log_file: str = None) -> None:
-    """
-    Initialize logger and log format.
-
-    Parameters
-    ----------
-    log_file : str, optional
-        Path to the log file. If provided, logs will be written to this file in addition to console output.
-    """
-    global logger
-    log_format = "%(asctime)s | %(levelname)8s | %(message)s"
-    handlers = [logging.StreamHandler(stream=sys.stdout)]
-
-    # Add file handler if log file is provided
-    if log_file:
-        try:
-            file_handler = logging.FileHandler(log_file, mode='a')
-            file_handler.setFormatter(logging.Formatter(log_format))
-            handlers.append(file_handler)
-            print(f"Logging to file: {log_file}")
-        except Exception as e:
-            print(f"Warning: Could not set up logging to file {log_file}: {e}")
-
-    logging.basicConfig(handlers=handlers, level=logging.INFO, format=log_format)
-    logger = logging.getLogger(__name__)
-
-
-def validate_input_file(file_path: str) -> str:
-    """
-    Validate that the input file exists and is readable.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the input file.
-
-    Returns
-    -------
-    str
-        The validated file path.
-
-    Raises
-    ------
-    argparse.ArgumentTypeError
-        If the file doesn't exist or isn't readable.
-    """
-    if not os.path.exists(file_path):
-        raise argparse.ArgumentTypeError(f"Input file does not exist: {file_path}")
-    if not os.path.isfile(file_path):
-        raise argparse.ArgumentTypeError(f"Input path is not a file: {file_path}")
-    if not os.access(file_path, os.R_OK):
-        raise argparse.ArgumentTypeError(f"Input file is not readable: {file_path}")
-    return file_path
-
-
-def validate_output_file(file_path: str) -> str:
-    """
-    Validate that the output file path is writable.
-
-    Parameters
-    ----------
-    file_path : str
-        Path to the output file.
-
-    Returns
-    -------
-    str
-        The validated file path.
-
-    Raises
-    ------
-    argparse.ArgumentTypeError
-        If the output directory doesn't exist or isn't writable.
-    """
-    output_dir = os.path.dirname(file_path) or '.'
-    if not os.path.exists(output_dir):
-        raise argparse.ArgumentTypeError(f"Output directory does not exist: {output_dir}")
-    if not os.access(output_dir, os.W_OK):
-        raise argparse.ArgumentTypeError(f"Output directory is not writable: {output_dir}")
-    return file_path
 
 
 def parse_command_line_args(args: list[str]) -> argparse.Namespace:
@@ -130,34 +52,18 @@ def parse_command_line_args(args: list[str]) -> argparse.Namespace:
     argparse.Namespace
         Parsed command line arguments.
     """
-    parser = argparse.ArgumentParser(description="Convert Evernote ENEX file to CSV")
-    parser.add_argument(
-        "--input-file",
-        metavar="ENEXFILE",
-        help="Input ENEX file path",
-        type=validate_input_file,
-        required=True,
-    )
-    parser.add_argument(
-        "--output-file",
-        metavar="CSVFILE",
-        help="Output CSV file path",
-        type=validate_output_file,
-        required=True,
-    )
+    parser = create_base_parser("Convert Evernote ENEX file to CSV")
     parser.add_argument(
         "--use-markdown",
         help="Convert note content to Markdown",
         action="store_true",
     )
-    parser.add_argument(
-        "--log-file",
-        metavar="LOGFILE",
-        help="Log file path (if not specified, logs will only be written to console)",
-        type=str,
-    )
-    parsed_args = parser.parse_args(args)
-    return parsed_args
+
+    # Update the metavar for input-file to be more specific
+    parser._option_string_actions["--input-file"].metavar = "ENEXFILE"
+    parser._option_string_actions["--input-file"].help = "Input ENEX file path"
+
+    return parse_args(parser, args)
 
 
 def read_enex(enex_filename: str) -> etree.ElementTree:
@@ -408,8 +314,10 @@ def main() -> None:
     -------
     None
     """
+    global logger
     parsed_args = parse_command_line_args(sys.argv[1:])
     setup_logging(parsed_args.log_file)
+    logger = get_logger()
     convert_enex(parsed_args)
 
 

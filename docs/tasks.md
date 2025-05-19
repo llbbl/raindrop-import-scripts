@@ -25,7 +25,7 @@ This document contains a prioritized list of actionable tasks to improve the rai
 
 ## Architecture Improvements
 
-- [ ] Create a common module for shared functionality (logging, argument parsing)
+- [x] Create a common module for shared functionality (logging, argument parsing)
 - [ ] Implement a plugin architecture to easily add new import sources
 - [ ] Create a unified CLI interface for all import scripts
 - [ ] Separate parsing logic from file I/O operations for better testability
