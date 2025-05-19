@@ -43,7 +43,7 @@ This document contains a prioritized list of actionable tasks to improve the rai
 ## Feature Enhancements
 
 - [x] Add support for additional import sources (Chrome bookmarks, Firefox bookmarks)
-- [ ] Implement direct API import to Raindrop.io
+- [x] Implement direct API import to Raindrop.io
 - [ ] Add support for batch processing multiple files
 - [ ] Implement filtering options for imports (by tag, date, etc.)
 - [ ] Add support for custom CSV field mapping
