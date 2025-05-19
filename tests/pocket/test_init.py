@@ -2,6 +2,8 @@ import pytest
 import argparse
 from unittest.mock import patch, MagicMock
 from pocket import PocketImportPlugin
+from pocket.pocket2csv import PocketConverter
+import common.logging
 
 
 class TestPocketImportPlugin:
@@ -39,14 +41,22 @@ class TestPocketImportPlugin:
         assert arguments["input_file"].metavar == "HTMLFILE"
         assert "Input HTML file path" in arguments["input_file"].help
 
-    @patch("pocket.convert_html")
-    def test_convert(self, mock_convert_html):
-        """Test that convert calls convert_html with the correct arguments."""
+    @patch("pocket.pocket2csv.PocketConverter.convert_html")
+    @patch("common.logging.get_logger")
+    def test_convert(self, mock_get_logger, mock_convert_html):
+        """Test that convert creates a PocketConverter and calls convert_html with the correct arguments."""
+        # Set the logger variable to a mock to avoid RuntimeError
+        common.logging.logger = MagicMock()
+
         # Create mock args
         args = argparse.Namespace(
             input_file="input.html",
             output_file="output.csv"
         )
+        
+        # Set up mocks
+        mock_logger = MagicMock()
+        mock_get_logger.return_value = mock_logger
         
         # Call convert
         PocketImportPlugin.convert(args)

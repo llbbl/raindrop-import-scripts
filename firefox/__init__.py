@@ -9,7 +9,8 @@ from typing import List
 
 from common.cli import create_base_parser, parse_args
 from common.plugins import BaseImportPlugin, register_plugin
-from firefox.firefox2csv import convert_json
+from common.logging import get_logger
+from firefox.firefox2csv import FirefoxBookmarkConverter
 
 
 @register_plugin
@@ -75,4 +76,10 @@ class FirefoxImportPlugin(BaseImportPlugin):
         None
             The function processes files and doesn't return a value.
         """
-        convert_json(args)
+        converter = FirefoxBookmarkConverter(args.input_file, args.output_file, get_logger())
+        converter.convert(
+            field_mappings=args.field_mappings,
+            preview=args.preview,
+            preview_limit=args.preview_limit,
+            dry_run=args.dry_run
+        )

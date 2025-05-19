@@ -1,6 +1,7 @@
 .idea/
 .vscode/
 *.csv
+.DS_Store
 
 # Coverage files
 .coverage
@@ -12,3 +13,6 @@ htmlcov/
 #ENV
 raindrop_import.yaml
 .env
+
+__pycache__/
+.pytest_cache/

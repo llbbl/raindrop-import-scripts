@@ -33,7 +33,265 @@ from common.validation import validate_input_file, validate_output_file
 from common.field_mapping import apply_field_mappings, map_rows
 from common.preview import preview_items
 
-logger = None
+
+class FirefoxBookmarkConverter:
+    """A class to handle the conversion of Firefox bookmarks from JSON to CSV format."""
+
+    def __init__(self, input_file: str, output_file: str, logger=None):
+        """
+        Initialize the FirefoxBookmarkConverter.
+
+        Parameters
+        ----------
+        input_file : str
+            Path to the input JSON file.
+        output_file : str
+            Path to the output CSV file.
+        logger : Optional[Logger]
+            Logger instance for logging messages.
+        """
+        self.input_file = input_file
+        self.output_file = output_file
+        self.logger = logger or get_logger(__name__)
+
+    def read_json_file(self) -> Dict[str, Any]:
+        """
+        Read JSON file content.
+
+        Returns
+        -------
+        Dict[str, Any]
+            Parsed JSON content.
+
+        Raises
+        ------
+        json.JSONDecodeError
+            If the JSON file is malformed.
+        IOError
+            If the file cannot be read.
+        """
+        self.logger.info(f'Reading input file "{self.input_file}"')
+        try:
+            with open(self.input_file, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            self.logger.exception(f"Failed to parse JSON from file: {self.input_file}")
+            raise
+        except IOError:
+            self.logger.exception(f"Failed to read input file: {self.input_file}")
+            raise
+        except Exception:
+            self.logger.exception("Unexpected error while reading input file")
+            raise
+
+    def process_bookmark_node(self, node: Dict[str, Any], path: List[str] = None) -> List[Dict[str, str]]:
+        """
+        Process a bookmark node recursively.
+
+        Parameters
+        ----------
+        node : Dict[str, Any]
+            Bookmark node to process.
+        path : List[str], optional
+            Current path in the bookmark hierarchy, used as tags.
+
+        Returns
+        -------
+        List[Dict[str, str]]
+            List of processed bookmarks.
+        """
+        if path is None:
+            path = []
+
+        results = []
+
+        # Process this node if it's a bookmark (has a URI)
+        if node.get("type") == "bookmark" and "uri" in node:
+            # Firefox timestamps are in microseconds since Jan 1, 1970
+            try:
+                firefox_timestamp = int(node.get("dateAdded", 0)) / 1000000  # Convert to seconds
+                if firefox_timestamp > 0:
+                    date_added = datetime.fromtimestamp(firefox_timestamp).strftime("%x %X")
+                else:
+                    date_added = datetime.now().strftime("%x %X")
+            except (ValueError, TypeError):
+                self.logger.warning(f"Failed to parse timestamp for bookmark {node.get('title', 'Unknown')}, using current time")
+                date_added = datetime.now().strftime("%x %X")
+
+            # Create bookmark entry
+            bookmark = {
+                "title": node.get("title", "Untitled"),
+                "url": node.get("uri", ""),
+                "created": date_added,
+                "tags": ",".join(path) if path else ""
+            }
+            results.append(bookmark)
+
+        # Process children recursively
+        if "children" in node:
+            # If this is a folder, add its name to the path for child bookmarks
+            new_path = path.copy()
+            if node.get("type") == "folder" and "title" in node:
+                new_path.append(node["title"])
+
+            # Process each child
+            for child in node["children"]:
+                results.extend(self.process_bookmark_node(child, new_path))
+
+        return results
+
+    def extract_bookmarks(self, data: Dict[str, Any]) -> List[Dict[str, str]]:
+        """
+        Extract bookmarks from parsed JSON.
+
+        Parameters
+        ----------
+        data : Dict[str, Any]
+            Parsed JSON content.
+
+        Returns
+        -------
+        List[Dict[str, str]]
+            Extracted bookmarks.
+
+        Raises
+        ------
+        Exception
+            If bookmark extraction fails.
+        """
+        self.logger.info("Extracting bookmarks")
+        csv_rows = []
+
+        try:
+            # Firefox bookmarks are stored in a nested structure
+            # The root has "children" which contains different bookmark folders
+            if "children" in data:
+                # Process each child of the root
+                for child in data["children"]:
+                    # Process this child
+                    bookmarks = self.process_bookmark_node(child)
+                    csv_rows.extend(bookmarks)
+
+            self.logger.info(f"Found {len(csv_rows)} bookmarks")
+
+            # Sort bookmarks by creation date
+            csv_rows.sort(key=lambda x: x.get("created", ""))
+
+        except Exception:
+            self.logger.exception("Failed to extract bookmarks")
+            raise
+
+        return csv_rows
+
+    def write_csv_file(
+        self,
+        csv_rows: List[Dict[str, str]],
+        field_mappings: Optional[Dict[str, str]] = None,
+        preview: bool = False,
+        preview_limit: int = 10,
+        dry_run: bool = False
+    ) -> None:
+        """
+        Write CSV file with optional field mapping and preview.
+
+        Parameters
+        ----------
+        csv_rows : List[Dict[str, str]]
+            Rows to write to the CSV file.
+        field_mappings : Dict[str, str], optional
+            Dictionary mapping source fields to target fields.
+        preview : bool, optional
+            If True, preview the items that will be imported.
+        preview_limit : int, optional
+            Maximum number of items to preview (default: 10).
+        dry_run : bool, optional
+            If True, validate the rows but don't write to the file.
+        """
+        if not csv_rows:
+            self.logger.error("No bookmarks to write")
+            return
+
+        # Apply field mappings if provided
+        if field_mappings:
+            self.logger.info("Applying field mappings to CSV rows")
+            mapped_rows = map_rows(csv_rows, field_mappings)
+        else:
+            mapped_rows = csv_rows
+
+        # Show preview if requested
+        if preview:
+            self.logger.info("Previewing items that will be imported:")
+            preview_items(
+                mapped_rows,
+                limit=preview_limit,
+                title_field="title",
+                url_field="url",
+                tags_field="tags",
+                created_field="created",
+                description_field="description" if "description" in (mapped_rows[0] if mapped_rows else {}) else None
+            )
+
+        if dry_run:
+            self.logger.info(f'Dry run: would write {len(mapped_rows)} rows to "{self.output_file}"')
+            # Validate that we can create a CSV writer with the rows
+            try:
+                fieldnames = list(mapped_rows[0])
+                # Just validate the field names, but don't create a writer
+                self.logger.info(f'Dry run: CSV validation successful for "{self.output_file}"')
+                if field_mappings:
+                    self.logger.info(f'Dry run: Field mappings applied: {field_mappings}')
+            except Exception as e:
+                self.logger.error(f'Dry run: CSV validation failed: {str(e)}')
+                raise
+            return
+
+        try:
+            with open(self.output_file, "w", newline="", encoding="utf-8") as f:
+                if not mapped_rows:
+                    self.logger.warning("No rows to write to CSV file")
+                    return
+
+                fieldnames = list(mapped_rows[0])
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+
+                for row in tqdm(mapped_rows, desc="Writing CSV rows"):
+                    writer.writerow(row)
+
+            self.logger.info(f'Successfully wrote {len(mapped_rows)} rows to "{self.output_file}"')
+
+        except Exception:
+            self.logger.exception(f"Failed to write CSV file: {self.output_file}")
+            raise
+
+    def convert(self, field_mappings: Optional[Dict[str, str]] = None, preview: bool = False,
+                preview_limit: int = 10, dry_run: bool = False) -> None:
+        """
+        Convert Firefox bookmarks from JSON to CSV format.
+
+        Parameters
+        ----------
+        field_mappings : Dict[str, str], optional
+            Dictionary mapping source fields to target fields.
+        preview : bool, optional
+            If True, preview the items that will be imported.
+        preview_limit : int, optional
+            Maximum number of items to preview (default: 10).
+        dry_run : bool, optional
+            If True, validate the rows but don't write to the file.
+        """
+        # Validate input file
+        validate_input_file(self.input_file)
+
+        # Validate output file
+        validate_output_file(self.output_file)
+
+        # Read and process the JSON file
+        data = self.read_json_file()
+        csv_rows = self.extract_bookmarks(data)
+
+        # Write the CSV file
+        self.write_csv_file(csv_rows, field_mappings, preview, preview_limit, dry_run)
 
 
 def parse_command_line_args(args: list[str]) -> argparse.Namespace:
@@ -59,303 +317,30 @@ def parse_command_line_args(args: list[str]) -> argparse.Namespace:
     return parse_args(parser, args)
 
 
-def read_json_file(file_path: str) -> Dict[str, Any]:
-    """
-    Read JSON file content.
-
-    Parameters
-    ----------
-    file_path : str
-        JSON file path.
-
-    Returns
-    -------
-    Dict[str, Any]
-        Parsed JSON content.
-    """
-    logger.info(f'Reading input file "{file_path}"')
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        logger.exception(f"Failed to parse JSON from file: {file_path}")
-        raise
-    except IOError:
-        logger.exception(f"Failed to read input file: {file_path}")
-        raise
-    except Exception:
-        logger.exception("Unexpected error while reading input file")
-        raise
-
-
-def process_bookmark_node(node: Dict[str, Any], path: List[str] = None) -> List[Dict[str, str]]:
-    """
-    Process a bookmark node recursively.
-
-    Parameters
-    ----------
-    node : Dict[str, Any]
-        Bookmark node to process.
-    path : List[str], optional
-        Current path in the bookmark hierarchy, used as tags.
-
-    Returns
-    -------
-    List[Dict[str, str]]
-        List of processed bookmarks.
-    """
-    if path is None:
-        path = []
-
-    results = []
-
-    # Process this node if it's a bookmark (has a URI)
-    if node.get("type") == "bookmark" and "uri" in node:
-        # Firefox timestamps are in microseconds since Jan 1, 1970
-        try:
-            firefox_timestamp = int(node.get("dateAdded", 0)) / 1000000  # Convert to seconds
-            if firefox_timestamp > 0:
-                date_added = datetime.fromtimestamp(firefox_timestamp).strftime("%x %X")
-            else:
-                date_added = datetime.now().strftime("%x %X")
-        except (ValueError, TypeError):
-            logger.warning(f"Failed to parse timestamp for bookmark {node.get('title', 'Unknown')}, using current time")
-            date_added = datetime.now().strftime("%x %X")
-
-        # Create bookmark entry
-        bookmark = {
-            "title": node.get("title", "Untitled"),
-            "url": node.get("uri", ""),
-            "created": date_added,
-            "tags": ",".join(path) if path else ""
-        }
-        results.append(bookmark)
-
-    # Process children recursively
-    if "children" in node:
-        # If this is a folder, add its name to the path for child bookmarks
-        new_path = path.copy()
-        if node.get("type") == "folder" and "title" in node:
-            new_path.append(node["title"])
-
-        # Process each child
-        for child in node["children"]:
-            results.extend(process_bookmark_node(child, new_path))
-
-    return results
-
-
-def extract_bookmarks(data: Dict[str, Any]) -> List[Dict[str, str]]:
-    """
-    Extract bookmarks from parsed JSON.
-
-    Parameters
-    ----------
-    data : Dict[str, Any]
-        Parsed JSON content.
-
-    Returns
-    -------
-    List[Dict[str, str]]
-        Extracted bookmarks.
-    """
-    logger.info("Extracting bookmarks")
-    csv_rows = []
+def main() -> None:
+    """Main entry point for the script."""
+    # Setup logging
+    setup_logging()
+    logger = get_logger(__name__)
 
     try:
-        # Firefox bookmarks are stored in a nested structure
-        # The root has "children" which contains different bookmark folders
-        if "children" in data:
-            # Process each child of the root
-            for child in data["children"]:
-                # Process this child
-                bookmarks = process_bookmark_node(child)
-                csv_rows.extend(bookmarks)
+        # Parse command line arguments
+        args = parse_command_line_args(sys.argv[1:])
 
-        logger.info(f"Found {len(csv_rows)} bookmarks")
+        # Create converter instance
+        converter = FirefoxBookmarkConverter(args.input_file, args.output_file, logger)
 
-        # Sort bookmarks by creation date
-        csv_rows.sort(key=lambda x: x.get("created", ""))
-
-    except Exception:
-        logger.exception("Failed to extract bookmarks")
-        raise
-
-    return csv_rows
-
-
-def write_csv_file(
-    file_path: str, 
-    csv_rows: List[Dict[str, str]], 
-    field_mappings: Optional[Dict[str, str]] = None,
-    preview: bool = False,
-    preview_limit: int = 10,
-    dry_run: bool = False
-) -> None:
-    """
-    Write CSV file with optional field mapping and preview.
-
-    Parameters
-    ----------
-    file_path : str
-        CSV file path.
-    csv_rows : List[Dict[str, str]]
-        Rows to write to the CSV file.
-    field_mappings : Dict[str, str], optional
-        Dictionary mapping source fields to target fields.
-    preview : bool, optional
-        If True, preview the items that will be imported.
-    preview_limit : int, optional
-        Maximum number of items to preview (default: 10).
-    dry_run : bool, optional
-        If True, validate the rows but don't write to the file.
-
-    Returns
-    -------
-    None
-        The function writes directly to the output file and doesn't return a value.
-    """
-    if not csv_rows:
-        logger.error("No bookmarks to write")
-        return
-
-    # Apply field mappings if provided
-    if field_mappings:
-        logger.info("Applying field mappings to CSV rows")
-        mapped_rows = map_rows(csv_rows, field_mappings)
-    else:
-        mapped_rows = csv_rows
-
-    # Show preview if requested
-    if preview:
-        logger.info("Previewing items that will be imported:")
-        preview_items(
-            mapped_rows,
-            limit=preview_limit,
-            title_field="title",
-            url_field="url",
-            tags_field="tags",
-            created_field="created",
-            description_field="description" if "description" in (mapped_rows[0] if mapped_rows else {}) else None
+        # Convert the bookmarks
+        converter.convert(
+            field_mappings=args.field_mappings,
+            preview=args.preview,
+            preview_limit=args.preview_limit,
+            dry_run=args.dry_run
         )
 
-    if dry_run:
-        logger.info(f'Dry run: would write {len(mapped_rows)} rows to "{file_path}"')
-        # Validate that we can create a CSV writer with the rows
-        try:
-            fieldnames = list(mapped_rows[0])
-            # Just validate the field names, but don't create a writer
-            logger.info(f'Dry run: CSV validation successful for "{file_path}"')
-            if field_mappings:
-                logger.info(f'Dry run: Field mappings applied: {field_mappings}')
-        except Exception as e:
-            logger.exception(f"Dry run: CSV validation failed: {e}")
-            raise
-        return
-
-    logger.info(f'Writing CSV output to "{file_path}"')
-    try:
-        with open(file_path, "w", encoding="utf-8", newline="") as f:
-            writer = csv.DictWriter(
-                f, fieldnames=list(csv_rows[0]), delimiter=",", lineterminator="\n", quotechar='"', quoting=csv.QUOTE_ALL
-            )
-            writer.writeheader()
-            writer.writerows(csv_rows)
-    except IOError:
-        logger.exception(f"Failed to write CSV to {file_path}")
-        raise
-    except Exception:
-        logger.exception("Unexpected error while writing CSV")
-        raise
-
-
-def convert_json(args: argparse.Namespace) -> None:
-    """
-    Convert Firefox bookmarks JSON file to CSV format for Raindrop.io import.
-
-    This function reads a Firefox bookmarks JSON export file, extracts bookmark information
-    (URL, title, folders as tags, creation date), and writes it to a CSV file in a format
-    compatible with Raindrop.io's import functionality.
-
-    Parameters
-    ----------
-    args : argparse.Namespace
-        Command line arguments containing input_file and output_file paths.
-
-    Returns
-    -------
-    None
-        The function writes directly to the output file and doesn't return a value.
-    """
-    # Read and parse JSON file
-    data = read_json_file(args.input_file)
-
-    # Extract bookmarks
-    csv_rows = extract_bookmarks(data)
-
-    # Check if we have any bookmarks to write
-    if not csv_rows:
-        logger.error("No bookmarks found to convert")
-        return
-
-    # Check if dry-run mode is enabled
-    dry_run = getattr(args, 'dry_run', False)
-    if dry_run:
-        logger.info("Dry run mode enabled: validating without writing files")
-
-    # Check if preview mode is enabled
-    preview = getattr(args, 'preview', False)
-    preview_limit = getattr(args, 'preview_limit', 10)
-    if preview:
-        logger.info(f"Preview mode enabled: showing up to {preview_limit} items")
-
-    # Get field mappings
-    field_mappings = apply_field_mappings(args)
-
-    # Log field mappings if any are set
-    if field_mappings and field_mappings != {
-        "title": "title",
-        "url": "url",
-        "tags": "tags",
-        "created": "created",
-        "description": "description"
-    }:
-        logger.info("Using custom field mappings:")
-        for source, target in field_mappings.items():
-            if source != target:
-                logger.info(f"  - {source} -> {target}")
-
-    # Write output file
-    write_csv_file(
-        args.output_file, 
-        csv_rows, 
-        field_mappings=field_mappings,
-        preview=preview,
-        preview_limit=preview_limit,
-        dry_run=dry_run
-    )
-
-    if dry_run:
-        logger.info(f"Dry run: successfully validated {len(csv_rows)} bookmarks")
-    else:
-        logger.info(f"Successfully converted {len(csv_rows)} bookmarks to CSV")
-
-
-def main() -> None:
-    """
-    Main entry point for the script.
-
-    Parses command line arguments and initiates the conversion process.
-
-    Returns
-    -------
-    None
-    """
-    global logger
-    parsed_args = parse_command_line_args(sys.argv[1:])
-    setup_logging(parsed_args.log_file)
-    logger = get_logger()
-    convert_json(parsed_args)
+    except Exception as e:
+        logger.error(f"Error: {str(e)}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

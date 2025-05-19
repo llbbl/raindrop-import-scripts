@@ -50,15 +50,9 @@ This document contains a prioritized list of actionable tasks to improve the rai
 - [x] Refactor existing Python script pocket2csv.py to an object-oriented design:
   - Convert procedural scripts into classes
   - Update associated unit tests to align with the new object-oriented structure.
-- [ ] Refactor existing Python script firefox2csv.py to an object-oriented design:
-  - Convert procedural scripts into classes
-  - Update associated unit tests to align with the new object-oriented structure.
-- [ ] Refactor existing Python script enex2csv.py to an object-oriented design:
-  - Convert procedural scripts into classes
-  - Update associated unit tests to align with the new object-oriented structure.
-- [ ] Refactor existing Python script chrome2csv.py to an object-oriented design:
-  - Convert procedural scripts into classes
-  - Update associated unit tests to align with the new object-oriented structure.
+- [x] Refactor existing Python script firefox2csv.py to an object-oriented design. Convert procedural scripts into classes. Update associated unit tests to align with the new object-oriented structure. All unit tests should pass.
+- [ ] Refactor existing Python script enex2csv.py to an object-oriented design. Convert procedural scripts into classes. Update associated unit tests to align with the new object-oriented structure. All unit tests should pass. We use poetry and run tests with `poetry run pytest`.
+- [ ] Refactor existing Python script chrome2csv.py to an object-oriented design. Convert procedural scripts into classes. Update associated unit tests to align with the new object-oriented structure. All unit tests should pass. We use poetry and run tests with `poetry run pytest`.
 
 ## Performance and Scalability
 
