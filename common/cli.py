@@ -47,6 +47,11 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
         help="Log file path (if not specified, logs will only be written to console)",
         type=str,
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate imports without writing files",
+    )
     return parser
 
 

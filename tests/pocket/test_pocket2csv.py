@@ -85,23 +85,30 @@ class TestPocket2Csv:
 
             # Create a mock soup with bookmarks
             soup = MagicMock()
-            bookmark1 = MagicMock()
-            bookmark1.contents = [MagicMock()]
-            bookmark1.contents[0].get.side_effect = lambda attr: {
+
+            # Create mock anchor tags
+            anchor1 = MagicMock()
+            anchor1.get.side_effect = lambda attr: {
                 "href": "http://example.com",
                 "time_added": "1577836800",
                 "tags": "tag1,tag2"
             }.get(attr)
-            bookmark1.contents[0].string = "Example 1"
+            anchor1.string = "Example 1"
 
-            bookmark2 = MagicMock()
-            bookmark2.contents = [MagicMock()]
-            bookmark2.contents[0].get.side_effect = lambda attr: {
+            anchor2 = MagicMock()
+            anchor2.get.side_effect = lambda attr: {
                 "href": "http://example.org",
                 "time_added": "1580515200",
                 "tags": None
             }.get(attr)
-            bookmark2.contents[0].string = "Example 2"
+            anchor2.string = "Example 2"
+
+            # Create mock bookmarks with find method that returns the mock anchors
+            bookmark1 = MagicMock()
+            bookmark1.find.return_value = anchor1
+
+            bookmark2 = MagicMock()
+            bookmark2.find.return_value = anchor2
 
             soup.find_all.return_value = [bookmark1, bookmark2]
 
@@ -128,14 +135,19 @@ class TestPocket2Csv:
 
             # Create a mock soup with a malformed bookmark
             soup = MagicMock()
-            bookmark = MagicMock()
-            bookmark.contents = [MagicMock()]
-            bookmark.contents[0].get.side_effect = lambda attr: {
+
+            # Create mock anchor tag with invalid time_added
+            anchor = MagicMock()
+            anchor.get.side_effect = lambda attr: {
                 "href": "http://example.com",
                 "time_added": "invalid",  # This will cause a ValueError when converted to float
                 "tags": None
             }.get(attr)
-            bookmark.contents[0].string = "Example 1"
+            anchor.string = "Example 1"
+
+            # Create mock bookmark with find method that returns the mock anchor
+            bookmark = MagicMock()
+            bookmark.find.return_value = anchor
 
             soup.find_all.return_value = [bookmark]
 

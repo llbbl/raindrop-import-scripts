@@ -105,7 +105,7 @@ def main(args: Optional[List[str]] = None) -> None:
         )
 
         # Remove arguments from the subparser that are handled by the main parser
-        for arg in ["--log-file", "--dry-run", "--config-file"]:
+        for arg in ["--log-file", "--config-file"]:
             if arg in subparser._option_string_actions:
                 subparser._option_string_actions.pop(arg)
                 for action in subparser._actions[:]:

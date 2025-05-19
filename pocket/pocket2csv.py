@@ -29,6 +29,7 @@ from common.cli import create_base_parser, parse_args
 from common.logging import setup_logging, get_logger
 from common.validation import validate_input_file, validate_output_file
 
+# Define logger at module level but don't initialize it yet
 logger = None
 
 
@@ -131,12 +132,18 @@ def extract_bookmarks(soup: BeautifulSoup) -> list[dict[str, str]]:
 
         for i, item in enumerate(bookmarks):
             try:
-                url: str = item.contents[0].get("href")
-                title: str = item.contents[0].string
-                tags: str = item.contents[0].get("tags") or ""  # Default to empty string if None
+                # Find the anchor tag within the list item
+                anchor = item.find('a')
+                if not anchor:
+                    logger.warning(f"No anchor tag found in bookmark {i+1}, skipping")
+                    continue
+
+                url: str = anchor.get("href")
+                title: str = anchor.string
+                tags: str = anchor.get("tags") or ""  # Default to empty string if None
 
                 try:
-                    time_added: float = float(item.contents[0].get("time_added"))
+                    time_added: float = float(anchor.get("time_added"))
                     date_added: str = datetime.fromtimestamp(time_added).strftime("%x %X")
                 except (ValueError, TypeError):
                     logger.warning(f"Failed to parse timestamp for bookmark {i+1}, using current time")
@@ -232,6 +239,16 @@ def convert_html(args: argparse.Namespace) -> None:
     None
         The function writes directly to the output file and doesn't return a value.
     """
+    global logger
+    # Initialize logger if it's not already initialized
+    if logger is None:
+        try:
+            logger = get_logger()
+        except RuntimeError:
+            # If setup_logging hasn't been called yet, call it now
+            setup_logging()
+            logger = get_logger()
+
     # Read and parse HTML file
     html_content = read_html_file(args.input_file)
     soup = parse_html_content(html_content)
