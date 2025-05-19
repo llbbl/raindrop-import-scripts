@@ -39,6 +39,26 @@ from common.validation import validate_input_file, validate_output_file
 logger = None
 
 
+def _get_or_setup_logger() -> logging.Logger:
+    """
+    Get the logger, initializing it if necessary.
+
+    Returns
+    -------
+    logging.Logger
+        The configured logger instance.
+    """
+    global logger
+    if logger is None:
+        try:
+            logger = get_logger()
+        except RuntimeError:
+            # Logger not initialized, set it up with default settings
+            setup_logging()
+            logger = get_logger()
+    return logger
+
+
 def parse_command_line_args(args: list[str]) -> argparse.Namespace:
     """
     Parse the arguments passed via the command line.
@@ -81,12 +101,12 @@ def read_enex_file(enex_filename: str) -> str:
     str
         ENEX file content.
     """
-    logger.info(f'Reading input file "{enex_filename}"')
+    _get_or_setup_logger().info(f'Reading input file "{enex_filename}"')
     try:
         with open(enex_filename, "r", encoding="utf-8") as enex_fd:
             return enex_fd.read()
     except Exception:
-        logger.exception(f"Failed to read ENEX file: {enex_filename}")
+        _get_or_setup_logger().exception(f"Failed to read ENEX file: {enex_filename}")
         raise
 
 
@@ -104,13 +124,13 @@ def parse_enex(enex_content: str) -> etree.ElementTree:
     etree.ElementTree
         Parsed XML tree.
     """
-    logger.info("Parsing ENEX content")
+    _get_or_setup_logger().info("Parsing ENEX content")
     try:
         xml_parser = etree.XMLParser(huge_tree=True, resolve_entities=False)
         xml_tree = etree.fromstring(enex_content.encode('utf-8'), xml_parser)
         return etree.ElementTree(xml_tree)
     except Exception:
-        logger.exception("Failed to parse ENEX")
+        _get_or_setup_logger().exception("Failed to parse ENEX")
         raise
 
 
@@ -184,11 +204,11 @@ def parse_xml_date(date_str: str) -> datetime.datetime:
         date = isoparse(date_str)
         return date
     except ValueError:
-        logger.exception(f"Failed to parse date: {date_str}")
+        _get_or_setup_logger().exception(f"Failed to parse date: {date_str}")
         # Return current datetime as fallback
         return datetime.datetime.utcnow()
     except Exception:
-        logger.exception(f"Unexpected error parsing date: {date_str}")
+        _get_or_setup_logger().exception(f"Unexpected error parsing date: {date_str}")
         # Return current datetime as fallback
         return datetime.datetime.utcnow()
 
@@ -212,7 +232,7 @@ def extract_note_records(xml_tree: etree.ElementTree, use_markdown: bool) -> lis
     try:
         notes = xml_tree.xpath("//note")
         total_notes = len(notes)
-        logger.info(f"Found {total_notes} notes")
+        _get_or_setup_logger().info(f"Found {total_notes} notes")
         records = []
 
         # Initialize progress bar
@@ -221,7 +241,7 @@ def extract_note_records(xml_tree: etree.ElementTree, use_markdown: bool) -> lis
         for i, note in enumerate(notes):
             try:
                 title = xpath_first_or_default(note, "title", "")
-                logger.debug(f'Converting note: "{title}"')  # Changed to debug to reduce console output
+                _get_or_setup_logger().debug(f'Converting note: "{title}"')  # Changed to debug to reduce console output
 
                 source_url = xpath_first_or_default(note, "note-attributes/source-url", "")
                 content = xpath_first_or_default(note, "content", "")
@@ -234,14 +254,14 @@ def extract_note_records(xml_tree: etree.ElementTree, use_markdown: bool) -> lis
                 try:
                     tags = "|".join(tag.text for tag in note.xpath("tag"))
                 except Exception:
-                    logger.warning(f"Failed to extract tags for note: {title}")
+                    _get_or_setup_logger().warning(f"Failed to extract tags for note: {title}")
                     tags = ""
 
                 if use_markdown:
                     try:
                         content = html_to_markdown(content)
                     except Exception:
-                        logger.warning(f"Failed to convert HTML to Markdown for note: {title}")
+                        _get_or_setup_logger().warning(f"Failed to convert HTML to Markdown for note: {title}")
                         # Keep original content if conversion fails
 
                 record = {

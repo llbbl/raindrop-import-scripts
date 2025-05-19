@@ -104,12 +104,13 @@ def main(args: Optional[List[str]] = None) -> None:
             conflict_handler="resolve",
         )
 
-        # Remove the --log-file argument from the subparser since it's handled by the main parser
-        if "--log-file" in subparser._option_string_actions:
-            subparser._option_string_actions.pop("--log-file")
-            for action in subparser._actions[:]:
-                if "--log-file" in action.option_strings:
-                    subparser._actions.remove(action)
+        # Remove arguments from the subparser that are handled by the main parser
+        for arg in ["--log-file", "--dry-run", "--config-file"]:
+            if arg in subparser._option_string_actions:
+                subparser._option_string_actions.pop(arg)
+                for action in subparser._actions[:]:
+                    if arg in action.option_strings:
+                        subparser._actions.remove(action)
 
     # Parse the arguments
     parsed_args = parser.parse_args(args)
@@ -129,6 +130,10 @@ def main(args: Optional[List[str]] = None) -> None:
         logger.info(f"Using configuration file: {parsed_args.config_file}")
     elif config:
         logger.info("Using configuration from default location")
+
+    # Log the dry run status
+    if parsed_args.dry_run:
+        logger.info("Running in dry-run mode (no files will be written)")
 
     # Get the selected plugin
     source = parsed_args.source

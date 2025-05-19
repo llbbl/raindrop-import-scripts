@@ -23,20 +23,39 @@ def setup_logging(log_file: Optional[str] = None) -> None:
     """
     global logger
     log_format = "%(asctime)s | %(levelname)8s | %(message)s"
-    handlers = [logging.StreamHandler(stream=sys.stdout)]
+    formatter = logging.Formatter(log_format)
+
+    # Create console handler
+    console_handler = logging.StreamHandler(stream=sys.stdout)
+    console_handler.setFormatter(formatter)
+
+    # Initialize handlers list
+    handlers = [console_handler]
 
     # Add file handler if log file is provided
     if log_file:
         try:
             file_handler = logging.FileHandler(log_file, mode='a')
-            file_handler.setFormatter(logging.Formatter(log_format))
+            file_handler.setFormatter(formatter)
             handlers.append(file_handler)
             print(f"Logging to file: {log_file}")
         except Exception as e:
             print(f"Warning: Could not set up logging to file {log_file}: {e}")
 
-    logging.basicConfig(handlers=handlers, level=logging.INFO, format=log_format)
+    # Configure root logger
+    logging.basicConfig(level=logging.INFO, format=log_format)
+
+    # Configure module logger
     logger = logging.getLogger(__name__)
+    logger.setLevel(logging.INFO)
+
+    # Remove any existing handlers to avoid duplicates
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+
+    # Add handlers to module logger
+    for handler in handlers:
+        logger.addHandler(handler)
 
 
 def get_logger() -> logging.Logger:
