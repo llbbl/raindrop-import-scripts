@@ -25,6 +25,7 @@ import logging
 import os
 import sys
 import time
+from typing import Callable
 
 from dateutil.parser import isoparse
 from html2text import HTML2Text
@@ -113,7 +114,7 @@ def parse_enex(enex_content: str) -> etree.ElementTree:
         raise
 
 
-def xpath_first_or_default(node: etree._Element, query: str, default: object, formatter: callable[[str], object] = None) -> object:
+def xpath_first_or_default(node: etree._Element, query: str, default: object, formatter: Callable[[str], object] = None) -> object:
     """
     Select the first results from an XPath query or fall back to a default value.
 
