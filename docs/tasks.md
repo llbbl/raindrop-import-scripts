@@ -43,18 +43,19 @@ This document contains a prioritized list of actionable tasks to improve the rai
 ## Feature Enhancements
 
 - [x] Add support for additional import sources (Chrome bookmarks, Firefox bookmarks)
-- [ ] Implement direct API import to Raindrop.io
-- [ ] Add support for batch processing multiple files
-- [ ] Implement filtering options for imports (by tag, date, etc.)
-- [ ] Add support for custom CSV field mapping
+- [x] Implement direct API import to Raindrop.io
+- [x] Implement filtering options for imports (by tag, date, etc.)
+- [x] Add support for custom CSV field mapping
 - [ ] Implement a preview mode to see what will be imported
-- [ ] Add support for handling attachments in Evernote notes
+- [ ] Refactor existing Python scripts to an object-oriented design:
+  - Convert procedural scripts into classes
+  - Convert common utility functions into classes where it makes sense
+  - Update associated unit tests to align with the new object-oriented structure.
 
 ## Performance and Scalability
 
 - [ ] Optimize memory usage for large import files
 - [ ] Implement chunked processing for very large files
-- [ ] Add parallel processing for batch imports
 - [ ] Implement progress tracking for long-running imports
 - [ ] Add benchmarking tools to measure performance
 

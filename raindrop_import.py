@@ -5,12 +5,19 @@ Unified CLI for importing data into Raindrop.io.
 This script provides a unified command-line interface for importing data from various
 sources into Raindrop.io. It uses a plugin architecture to support multiple import sources.
 
+Configuration can be provided via command-line arguments, a YAML configuration file,
+or environment variables in a .env file. The order of precedence is:
+1. Command-line arguments
+2. Configuration file (YAML)
+3. Environment variables (.env file)
+
 Usage:
     raindrop_import.py [-h] {source} ...
 
-Example:
+Examples:
     raindrop_import.py evernote --input-file export.enex --output-file evernote.csv --use-markdown
     raindrop_import.py pocket --input-file ril_export.html --output-file pocket.csv
+    raindrop_import.py raindrop-api --api-token YOUR_API_TOKEN --input-file bookmarks.csv --collection-id 0
 """
 
 import argparse
@@ -53,6 +60,92 @@ def create_main_parser() -> argparse.ArgumentParser:
         "--dry-run",
         action="store_true",
         help="Validate imports without writing files",
+    )
+
+    # Add filtering arguments
+    filtering_group = parser.add_argument_group('Filtering options')
+    filtering_group.add_argument(
+        "--filter-tag",
+        metavar="TAG",
+        help="Filter bookmarks by tag (comma-separated list for multiple tags)",
+        type=str,
+    )
+    filtering_group.add_argument(
+        "--filter-date-from",
+        metavar="DATE",
+        help="Filter bookmarks created on or after this date (format: YYYY-MM-DD)",
+        type=str,
+    )
+    filtering_group.add_argument(
+        "--filter-date-to",
+        metavar="DATE",
+        help="Filter bookmarks created on or before this date (format: YYYY-MM-DD)",
+        type=str,
+    )
+    filtering_group.add_argument(
+        "--filter-title",
+        metavar="TEXT",
+        help="Filter bookmarks by title (case-insensitive substring match)",
+        type=str,
+    )
+    filtering_group.add_argument(
+        "--filter-url",
+        metavar="TEXT",
+        help="Filter bookmarks by URL (case-insensitive substring match)",
+        type=str,
+    )
+
+    # Add preview mode argument
+    parser.add_argument(
+        "--preview",
+        action="store_true",
+        help="Preview the items that will be imported without writing files",
+    )
+    parser.add_argument(
+        "--preview-limit",
+        metavar="N",
+        help="Limit the number of items shown in preview mode (default: 10)",
+        type=int,
+        default=10,
+    )
+
+    # Add field mapping arguments
+    mapping_group = parser.add_argument_group('Field mapping options')
+    mapping_group.add_argument(
+        "--field-map",
+        metavar="MAPFILE",
+        help="JSON file containing custom field mappings",
+        type=str,
+    )
+    mapping_group.add_argument(
+        "--map-title",
+        metavar="FIELD",
+        help="Map the title field to a custom field name",
+        type=str,
+    )
+    mapping_group.add_argument(
+        "--map-url",
+        metavar="FIELD",
+        help="Map the URL field to a custom field name",
+        type=str,
+    )
+    mapping_group.add_argument(
+        "--map-tags",
+        metavar="FIELD",
+        help="Map the tags field to a custom field name",
+        type=str,
+    )
+    mapping_group.add_argument(
+        "--map-created",
+        metavar="FIELD",
+        help="Map the created date field to a custom field name",
+        type=str,
+    )
+    mapping_group.add_argument(
+        "--map-description",
+        metavar="FIELD",
+        help="Map the description field to a custom field name (if available)",
+        type=str,
     )
 
     return parser
