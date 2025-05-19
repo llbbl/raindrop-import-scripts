@@ -16,18 +16,20 @@ Example:
 """
 
 import csv
-import logging
 import sys
 import argparse
 import os
 import time
 from datetime import datetime
+from typing import Optional, List, Dict, Any
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 from common.cli import create_base_parser, parse_args
 from common.logging import setup_logging, get_logger
 from common.validation import validate_input_file, validate_output_file
+from common.field_mapping import apply_field_mappings, map_rows
+from common.preview import preview_items
 
 # Define logger at module level but don't initialize it yet
 logger = None
@@ -104,19 +106,36 @@ def parse_html_content(html_content: str) -> BeautifulSoup:
         raise
 
 
-def extract_bookmarks(soup: BeautifulSoup) -> list[dict[str, str]]:
+def extract_bookmarks(
+    soup: BeautifulSoup,
+    filter_tag: Optional[str] = None,
+    filter_date_from: Optional[str] = None,
+    filter_date_to: Optional[str] = None,
+    filter_title: Optional[str] = None,
+    filter_url: Optional[str] = None
+) -> list[dict[str, str]]:
     """
-    Extract bookmarks from parsed HTML.
+    Extract bookmarks from parsed HTML with optional filtering.
 
     Parameters
     ----------
     soup : BeautifulSoup
         Parsed HTML content.
+    filter_tag : str, optional
+        Filter bookmarks by tag (comma-separated list for multiple tags).
+    filter_date_from : str, optional
+        Filter bookmarks created on or after this date (format: YYYY-MM-DD).
+    filter_date_to : str, optional
+        Filter bookmarks created on or before this date (format: YYYY-MM-DD).
+    filter_title : str, optional
+        Filter bookmarks by title (case-insensitive substring match).
+    filter_url : str, optional
+        Filter bookmarks by URL (case-insensitive substring match).
 
     Returns
     -------
     list[dict[str, str]]
-        Extracted bookmarks.
+        Extracted bookmarks that match the filter criteria.
     """
     logger.info("Extracting bookmarks")
     csv_rows: list[dict[str, str]] = []
@@ -149,13 +168,58 @@ def extract_bookmarks(soup: BeautifulSoup) -> list[dict[str, str]]:
                     logger.warning(f"Failed to parse timestamp for bookmark {i+1}, using current time")
                     date_added: str = datetime.now().strftime("%x %X")
 
-                row: dict[str, str] = {
+                row: Dict[str, str] = {
                     "title": title or "Untitled",  # Default to "Untitled" if None
                     "url": url or "",
                     "created": date_added,
                     "tags": tags
                 }
-                csv_rows.append(row)
+
+                # Apply filters
+                should_include = True
+
+                # Filter by tag
+                if filter_tag and should_include:
+                    filter_tags = [t.strip().lower() for t in filter_tag.split(',')]
+                    bookmark_tags = [t.strip().lower() for t in tags.split(',') if t.strip()]
+                    # Check if any of the bookmark tags match any of the filter tags
+                    if not any(tag in bookmark_tags for tag in filter_tags):
+                        should_include = False
+
+                # Filter by date range
+                if filter_date_from and should_include:
+                    try:
+                        # Convert date strings to datetime objects for comparison
+                        bookmark_date = datetime.strptime(date_added.split()[0], "%x")
+                        from_date = datetime.strptime(filter_date_from, "%Y-%m-%d")
+                        if bookmark_date < from_date:
+                            should_include = False
+                    except ValueError:
+                        logger.warning(f"Failed to parse date for date-from filter, including bookmark")
+
+                if filter_date_to and should_include:
+                    try:
+                        # Convert date strings to datetime objects for comparison
+                        bookmark_date = datetime.strptime(date_added.split()[0], "%x")
+                        to_date = datetime.strptime(filter_date_to, "%Y-%m-%d")
+                        if bookmark_date > to_date:
+                            should_include = False
+                    except ValueError:
+                        logger.warning(f"Failed to parse date for date-to filter, including bookmark")
+
+                # Filter by title
+                if filter_title and should_include:
+                    if filter_title.lower() not in (title or "").lower():
+                        should_include = False
+
+                # Filter by URL
+                if filter_url and should_include:
+                    if filter_url.lower() not in (url or "").lower():
+                        should_include = False
+
+                # Add the bookmark to the list if it passes all filters
+                if should_include:
+                    csv_rows.append(row)
 
                 # Update progress bar
                 progress_bar.update(1)
@@ -175,16 +239,29 @@ def extract_bookmarks(soup: BeautifulSoup) -> list[dict[str, str]]:
     return csv_rows
 
 
-def write_csv_file(file_path: str, csv_rows: list[dict[str, str]], dry_run: bool = False) -> None:
+def write_csv_file(
+    file_path: str, 
+    csv_rows: List[Dict[str, str]], 
+    field_mappings: Optional[Dict[str, str]] = None, 
+    preview: bool = False,
+    preview_limit: int = 10,
+    dry_run: bool = False
+) -> None:
     """
-    Write CSV file.
+    Write CSV file with optional field mapping and preview.
 
     Parameters
     ----------
     file_path : str
         CSV file path.
-    csv_rows : list[dict[str, str]]
+    csv_rows : List[Dict[str, str]]
         Rows to write to the CSV file.
+    field_mappings : Dict[str, str], optional
+        Dictionary mapping source fields to target fields.
+    preview : bool, optional
+        If True, preview the items that will be imported.
+    preview_limit : int, optional
+        Maximum number of items to preview (default: 10).
     dry_run : bool, optional
         If True, validate the rows but don't write to the file.
 
@@ -193,13 +270,22 @@ def write_csv_file(file_path: str, csv_rows: list[dict[str, str]], dry_run: bool
     None
         The function writes directly to the output file and doesn't return a value.
     """
+    # Apply field mappings if provided
+    if field_mappings:
+        logger.info("Applying field mappings to CSV rows")
+        mapped_rows = map_rows(csv_rows, field_mappings)
+    else:
+        mapped_rows = csv_rows
+
     if dry_run:
-        logger.info(f'Dry run: would write {len(csv_rows)} rows to "{file_path}"')
+        logger.info(f'Dry run: would write {len(mapped_rows)} rows to "{file_path}"')
         # Validate that we can create a CSV writer with the rows
         try:
-            fieldnames = list(csv_rows[0])
+            fieldnames = list(mapped_rows[0])
             # Just validate the field names, but don't create a writer
             logger.info(f'Dry run: CSV validation successful for "{file_path}"')
+            if field_mappings:
+                logger.info(f'Dry run: Field mappings applied: {field_mappings}')
         except Exception as e:
             logger.exception(f"Dry run: CSV validation failed: {e}")
             raise
@@ -209,10 +295,10 @@ def write_csv_file(file_path: str, csv_rows: list[dict[str, str]], dry_run: bool
     try:
         with open(file_path, "w") as f:
             writer = csv.DictWriter(
-                f, fieldnames=list(csv_rows[0]), delimiter=",", lineterminator="\n", quotechar='"', quoting=csv.QUOTE_ALL
+                f, fieldnames=list(mapped_rows[0]), delimiter=",", lineterminator="\n", quotechar='"', quoting=csv.QUOTE_ALL
             )
             writer.writeheader()
-            writer.writerows(csv_rows)
+            writer.writerows(mapped_rows)
     except IOError:
         logger.exception(f"Failed to write CSV to {file_path}")
         raise
@@ -253,8 +339,35 @@ def convert_html(args: argparse.Namespace) -> None:
     html_content = read_html_file(args.input_file)
     soup = parse_html_content(html_content)
 
-    # Extract bookmarks
-    csv_rows = extract_bookmarks(soup)
+    # Extract bookmarks with filtering
+    filter_tag = getattr(args, 'filter_tag', None)
+    filter_date_from = getattr(args, 'filter_date_from', None)
+    filter_date_to = getattr(args, 'filter_date_to', None)
+    filter_title = getattr(args, 'filter_title', None)
+    filter_url = getattr(args, 'filter_url', None)
+
+    # Log filtering options if any are set
+    if any([filter_tag, filter_date_from, filter_date_to, filter_title, filter_url]):
+        logger.info("Applying filters to bookmarks:")
+        if filter_tag:
+            logger.info(f"  - Tag filter: {filter_tag}")
+        if filter_date_from:
+            logger.info(f"  - Date from: {filter_date_from}")
+        if filter_date_to:
+            logger.info(f"  - Date to: {filter_date_to}")
+        if filter_title:
+            logger.info(f"  - Title contains: {filter_title}")
+        if filter_url:
+            logger.info(f"  - URL contains: {filter_url}")
+
+    csv_rows = extract_bookmarks(
+        soup,
+        filter_tag=filter_tag,
+        filter_date_from=filter_date_from,
+        filter_date_to=filter_date_to,
+        filter_title=filter_title,
+        filter_url=filter_url
+    )
 
     # Check if we have any bookmarks to write
     if not csv_rows:
@@ -266,8 +379,24 @@ def convert_html(args: argparse.Namespace) -> None:
     if dry_run:
         logger.info("Dry run mode enabled: validating without writing files")
 
+    # Get field mappings
+    field_mappings = apply_field_mappings(args)
+
+    # Log field mappings if any are set
+    if field_mappings and field_mappings != {
+        "title": "title",
+        "url": "url",
+        "tags": "tags",
+        "created": "created",
+        "description": "description"
+    }:
+        logger.info("Using custom field mappings:")
+        for source, target in field_mappings.items():
+            if source != target:
+                logger.info(f"  - {source} -> {target}")
+
     # Write output file
-    write_csv_file(args.output_file, csv_rows, dry_run)
+    write_csv_file(args.output_file, csv_rows, field_mappings, dry_run)
 
     if dry_run:
         logger.info(f"Dry run: successfully validated {len(csv_rows)} bookmarks")

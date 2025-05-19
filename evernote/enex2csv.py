@@ -25,7 +25,7 @@ import logging
 import os
 import sys
 import time
-from typing import Callable
+from typing import Callable, Optional, List, Dict, Any
 
 from dateutil.parser import isoparse
 from html2text import HTML2Text
@@ -35,6 +35,7 @@ from tqdm import tqdm
 from common.cli import create_base_parser, parse_args
 from common.logging import setup_logging, get_logger
 from common.validation import validate_input_file, validate_output_file
+from common.field_mapping import apply_field_mappings, map_rows
 
 logger = None
 
@@ -213,9 +214,17 @@ def parse_xml_date(date_str: str) -> datetime.datetime:
         return datetime.datetime.utcnow()
 
 
-def extract_note_records(xml_tree: etree.ElementTree, use_markdown: bool) -> list[dict]:
+def extract_note_records(
+    xml_tree: etree.ElementTree, 
+    use_markdown: bool,
+    filter_tag: Optional[str] = None,
+    filter_date_from: Optional[str] = None,
+    filter_date_to: Optional[str] = None,
+    filter_title: Optional[str] = None,
+    filter_url: Optional[str] = None
+) -> List[Dict]:
     """
-    Extract notes as dictionaries.
+    Extract notes as dictionaries with optional filtering.
 
     Parameters
     ----------
@@ -223,11 +232,21 @@ def extract_note_records(xml_tree: etree.ElementTree, use_markdown: bool) -> lis
         Parsed ENEX XML tree
     use_markdown : bool
         Whether to convert note content to Markdown. Otherwise, use raw XML/HTML.
+    filter_tag : str, optional
+        Filter notes by tag (comma-separated list for multiple tags).
+    filter_date_from : str, optional
+        Filter notes created on or after this date (format: YYYY-MM-DD).
+    filter_date_to : str, optional
+        Filter notes created on or before this date (format: YYYY-MM-DD).
+    filter_title : str, optional
+        Filter notes by title (case-insensitive substring match).
+    filter_url : str, optional
+        Filter notes by URL (case-insensitive substring match).
 
     Returns
     -------
-    list[dict]
-        Extracted note records.
+    List[Dict]
+        Extracted note records that match the filter criteria.
     """
     try:
         notes = xml_tree.xpath("//note")
@@ -273,7 +292,60 @@ def extract_note_records(xml_tree: etree.ElementTree, use_markdown: bool) -> lis
                     "reminder_date": reminder_date,
                     "tags": tags,
                 }
-                records.append(record)
+
+                # Apply filters
+                should_include = True
+
+                # Filter by tag
+                if filter_tag and should_include:
+                    filter_tags = [t.strip().lower() for t in filter_tag.split(',')]
+                    note_tags = [t.strip().lower() for t in tags.split('|') if t.strip()]
+                    # Check if any of the note tags match any of the filter tags
+                    if not any(tag in note_tags for tag in filter_tags):
+                        should_include = False
+
+                # Filter by date range
+                if filter_date_from and should_include and created_date:
+                    try:
+                        # Convert date strings to datetime objects for comparison
+                        from_date = datetime.datetime.strptime(filter_date_from, "%Y-%m-%d")
+                        # created_date is already a datetime object
+                        if isinstance(created_date, str):
+                            note_date = datetime.datetime.strptime(created_date, "%Y-%m-%d")
+                        else:
+                            note_date = created_date
+                        if note_date < from_date:
+                            should_include = False
+                    except (ValueError, TypeError):
+                        logger.warning(f"Failed to parse date for date-from filter, including note")
+
+                if filter_date_to and should_include and created_date:
+                    try:
+                        # Convert date strings to datetime objects for comparison
+                        to_date = datetime.datetime.strptime(filter_date_to, "%Y-%m-%d")
+                        # created_date is already a datetime object
+                        if isinstance(created_date, str):
+                            note_date = datetime.datetime.strptime(created_date, "%Y-%m-%d")
+                        else:
+                            note_date = created_date
+                        if note_date > to_date:
+                            should_include = False
+                    except (ValueError, TypeError):
+                        logger.warning(f"Failed to parse date for date-to filter, including note")
+
+                # Filter by title
+                if filter_title and should_include:
+                    if filter_title.lower() not in title.lower():
+                        should_include = False
+
+                # Filter by URL
+                if filter_url and should_include and source_url:
+                    if filter_url.lower() not in source_url.lower():
+                        should_include = False
+
+                # Add the note to the list if it passes all filters
+                if should_include:
+                    records.append(record)
 
                 # Update progress bar
                 progress_bar.update(1)
@@ -293,16 +365,18 @@ def extract_note_records(xml_tree: etree.ElementTree, use_markdown: bool) -> lis
         return []
 
 
-def write_csv(csv_filename: str, note_records: list[dict], dry_run: bool = False) -> None:
+def write_csv(csv_filename: str, note_records: List[Dict], field_mappings: Optional[Dict[str, str]] = None, dry_run: bool = False) -> None:
     """
-    Write parsed note records as CSV.
+    Write parsed note records as CSV with optional field mapping.
 
     Parameters
     ----------
     csv_filename : str
         Output CSV file path.
-    note_records : list[dict]
+    note_records : List[Dict]
         Extracted note records.
+    field_mappings : Dict[str, str], optional
+        Dictionary mapping source fields to target fields.
     dry_run : bool, optional
         If True, validate the records but don't write to the file.
 
@@ -311,13 +385,22 @@ def write_csv(csv_filename: str, note_records: list[dict], dry_run: bool = False
     None
         The function writes directly to the output file and doesn't return a value.
     """
+    # Apply field mappings if provided
+    if field_mappings:
+        logger.info("Applying field mappings to CSV rows")
+        mapped_records = map_rows(note_records, field_mappings)
+    else:
+        mapped_records = note_records
+
     if dry_run:
-        logger.info(f'Dry run: would write {len(note_records)} records to "{csv_filename}"')
+        logger.info(f'Dry run: would write {len(mapped_records)} records to "{csv_filename}"')
         # Validate that we can create a CSV writer with the records
         try:
-            fieldnames = list(note_records[0])
+            fieldnames = list(mapped_records[0])
             # Just validate the field names, but don't create a writer
             logger.info(f'Dry run: CSV validation successful for "{csv_filename}"')
+            if field_mappings:
+                logger.info(f'Dry run: Field mappings applied: {field_mappings}')
         except Exception as e:
             logger.exception(f"Dry run: CSV validation failed: {e}")
             raise
@@ -327,10 +410,10 @@ def write_csv(csv_filename: str, note_records: list[dict], dry_run: bool = False
     try:
         with open(csv_filename, "w", encoding="utf-8") as csv_fd:
             writer = csv.DictWriter(
-                csv_fd, fieldnames=list(note_records[0]), delimiter=",", lineterminator="\n"
+                csv_fd, fieldnames=list(mapped_records[0]), delimiter=",", lineterminator="\n"
             )
             writer.writeheader()
-            writer.writerows(note_records)
+            writer.writerows(mapped_records)
     except IOError:
         logger.exception(f"Failed to write CSV to {csv_filename}")
         raise
@@ -355,7 +438,37 @@ def convert_enex(parsed_args: argparse.Namespace) -> None:
     """
     enex_content = read_enex_file(parsed_args.input_file)
     xml_tree = parse_enex(enex_content)
-    records = extract_note_records(xml_tree, parsed_args.use_markdown)
+
+    # Get filtering options
+    filter_tag = getattr(parsed_args, 'filter_tag', None)
+    filter_date_from = getattr(parsed_args, 'filter_date_from', None)
+    filter_date_to = getattr(parsed_args, 'filter_date_to', None)
+    filter_title = getattr(parsed_args, 'filter_title', None)
+    filter_url = getattr(parsed_args, 'filter_url', None)
+
+    # Log filtering options if any are set
+    if any([filter_tag, filter_date_from, filter_date_to, filter_title, filter_url]):
+        logger.info("Applying filters to notes:")
+        if filter_tag:
+            logger.info(f"  - Tag filter: {filter_tag}")
+        if filter_date_from:
+            logger.info(f"  - Date from: {filter_date_from}")
+        if filter_date_to:
+            logger.info(f"  - Date to: {filter_date_to}")
+        if filter_title:
+            logger.info(f"  - Title contains: {filter_title}")
+        if filter_url:
+            logger.info(f"  - URL contains: {filter_url}")
+
+    records = extract_note_records(
+        xml_tree, 
+        parsed_args.use_markdown,
+        filter_tag=filter_tag,
+        filter_date_from=filter_date_from,
+        filter_date_to=filter_date_to,
+        filter_title=filter_title,
+        filter_url=filter_url
+    )
     if len(records) <= 0:
         logger.error("No records found to convert")
         return
@@ -365,7 +478,23 @@ def convert_enex(parsed_args: argparse.Namespace) -> None:
     if dry_run:
         logger.info("Dry run mode enabled: validating without writing files")
 
-    write_csv(parsed_args.output_file, records, dry_run)
+    # Get field mappings
+    field_mappings = apply_field_mappings(parsed_args)
+
+    # Log field mappings if any are set
+    if field_mappings and field_mappings != {
+        "title": "title",
+        "url": "url",
+        "tags": "tags",
+        "created": "created",
+        "description": "description"
+    }:
+        logger.info("Using custom field mappings:")
+        for source, target in field_mappings.items():
+            if source != target:
+                logger.info(f"  - {source} -> {target}")
+
+    write_csv(parsed_args.output_file, records, field_mappings, dry_run)
 
 
 def main() -> None:
