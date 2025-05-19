@@ -1,3 +1,10 @@
 .idea/
 .vscode/
 *.csv
+
+# Coverage files
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.output.txt

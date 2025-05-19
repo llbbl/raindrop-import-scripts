@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE en-export SYSTEM "http://xml.evernote.com/pub/evernote-export3.dtd">
+<en-export export-date="20230101T120000Z" application="Evernote" version="10.0">
+  <note>
+    <title>Sample Note 1</title>
+    <content>
+      <![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note>
+  <div>This is a sample note with some content.</div>
+  <div>It has multiple paragraphs.</div>
+  <div><b>Some text is bold.</b></div>
+  <div><i>Some text is italic.</i></div>
+  <div><a href="http://example.com">This is a link</a></div>
+</en-note>]]>
+    </content>
+    <created>20230101T100000Z</created>
+    <updated>20230101T110000Z</updated>
+    <tag>sample</tag>
+    <tag>test</tag>
+    <note-attributes>
+      <source-url>http://example.com/note1</source-url>
+      <reminder-time>20230102T100000Z</reminder-time>
+    </note-attributes>
+  </note>
+  <note>
+    <title>Sample Note 2</title>
+    <content>
+      <![CDATA[<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE en-note SYSTEM "http://xml.evernote.com/pub/enml2.dtd">
+<en-note>
+  <div>This is another sample note.</div>
+  <div>It has a list:</div>
+  <ul>
+    <li>Item 1</li>
+    <li>Item 2</li>
+    <li>Item 3</li>
+  </ul>
+</en-note>]]>
+    </content>
+    <created>20230102T100000Z</created>
+    <updated>20230102T110000Z</updated>
+    <tag>sample</tag>
+    <note-attributes>
+      <source-url>http://example.com/note2</source-url>
+    </note-attributes>
+  </note>
+</en-export>

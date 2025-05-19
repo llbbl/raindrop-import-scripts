@@ -1,0 +1,24 @@
+# Example configuration file for raindrop-import-scripts
+# Copy this file to raindrop_import.yaml in the current directory
+# or to ~/.raindrop_import.yaml in your home directory
+
+# Global settings (applied to all import sources)
+global:
+  # Default output file path
+  output_file: "raindrop_import.csv"
+  
+  # Default log file path
+  log_file: "raindrop_import.log"
+
+# Evernote-specific settings
+evernote:
+  # Default input file path for Evernote imports
+  input_file: "evernote_export.enex"
+  
+  # Convert note content to Markdown
+  use_markdown: true
+
+# Pocket-specific settings
+pocket:
+  # Default input file path for Pocket imports
+  input_file: "pocket_export.html"

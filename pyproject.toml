@@ -1,9 +1,10 @@
 [tool.poetry]
 name = "raindrop-import-scripts"
 version = "0.1.0"
-description = ""
+description = "A collection of import scripts for raindrop.io bookmark manager. Includes tools to convert Evernote (.enex) and Pocket (HTML export) files to CSV format for easy import into raindrop.io."
 authors = ["llbbl <logan@llbbl.com>"]
 readme = "README.md"
+packages = [{include = "*"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
@@ -11,6 +12,20 @@ python-dateutil = "^2.9.0.post0"
 lxml = "^5.4.0"
 html2text = "^2025.4.15"
 bs4 = "^0.0.2"
+tqdm = "^4.67.1"
+pyyaml = "^6.0.2"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.5"
+pytest-cov = "^6.1.1"
+
+[tool.poetry.scripts]
+test = "pytest:main"
+test-cov = "pytest:main"
+
+[tool.pytest.ini_options]
+addopts = "--cov=. --cov-report=xml --cov-report=term"
+
 
 
 [build-system]

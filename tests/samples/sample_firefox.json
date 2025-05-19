@@ -1,0 +1,89 @@
+{
+  "title": "Bookmarks",
+  "id": 1,
+  "dateAdded": 1577836800000000,
+  "lastModified": 1577836800000000,
+  "type": "text/x-moz-place-container",
+  "root": "placesRoot",
+  "children": [
+    {
+      "title": "Bookmarks Menu",
+      "id": 2,
+      "dateAdded": 1577836800000000,
+      "lastModified": 1577836800000000,
+      "type": "text/x-moz-place-container",
+      "root": "bookmarksMenuFolder",
+      "children": [
+        {
+          "title": "Example 1",
+          "id": 3,
+          "dateAdded": 1577836800000000,
+          "lastModified": 1577836800000000,
+          "type": "text/x-moz-place",
+          "uri": "http://example1.com"
+        },
+        {
+          "title": "Folder 1",
+          "id": 4,
+          "dateAdded": 1577836800000000,
+          "lastModified": 1577836800000000,
+          "type": "text/x-moz-place-container",
+          "children": [
+            {
+              "title": "Example 2",
+              "id": 5,
+              "dateAdded": 1577836800000000,
+              "lastModified": 1577836800000000,
+              "type": "text/x-moz-place",
+              "uri": "http://example2.com"
+            },
+            {
+              "title": "Example 3",
+              "id": 6,
+              "dateAdded": 1577836800000000,
+              "lastModified": 1577836800000000,
+              "type": "text/x-moz-place",
+              "uri": "http://example3.com"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "Bookmarks Toolbar",
+      "id": 7,
+      "dateAdded": 1577836800000000,
+      "lastModified": 1577836800000000,
+      "type": "text/x-moz-place-container",
+      "root": "toolbarFolder",
+      "children": [
+        {
+          "title": "Example 4",
+          "id": 8,
+          "dateAdded": 1577836800000000,
+          "lastModified": 1577836800000000,
+          "type": "text/x-moz-place",
+          "uri": "http://example4.com"
+        }
+      ]
+    },
+    {
+      "title": "Other Bookmarks",
+      "id": 9,
+      "dateAdded": 1577836800000000,
+      "lastModified": 1577836800000000,
+      "type": "text/x-moz-place-container",
+      "root": "unfiledBookmarksFolder",
+      "children": []
+    },
+    {
+      "title": "Mobile Bookmarks",
+      "id": 10,
+      "dateAdded": 1577836800000000,
+      "lastModified": 1577836800000000,
+      "type": "text/x-moz-place-container",
+      "root": "mobileFolder",
+      "children": []
+    }
+  ]
+}
