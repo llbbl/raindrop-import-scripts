@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "raindrop-import-scripts"
 version = "0.1.0"
-description = ""
+description = "A collection of import scripts for raindrop.io bookmark manager. Includes tools to convert Evernote (.enex) and Pocket (HTML export) files to CSV format for easy import into raindrop.io."
 authors = ["llbbl <logan@llbbl.com>"]
 readme = "README.md"
 

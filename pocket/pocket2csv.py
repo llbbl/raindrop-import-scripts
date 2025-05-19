@@ -1,4 +1,19 @@
-# parse pocket html export and convert to csv
+"""
+Convert Pocket HTML export files to CSV format for import into Raindrop.io.
+
+This module provides functionality to parse Pocket HTML export files and convert them
+to CSV format that can be imported into Raindrop.io bookmark manager. It extracts URLs,
+titles, tags, and creation dates from the Pocket HTML export.
+
+To export your bookmarks from Pocket, go to https://getpocket.com/export and download
+the HTML file. Then use this script to convert it to CSV format for import into Raindrop.io.
+
+Usage:
+    pocket2csv.py [-h] --input-file HTMLFILE --output-file CSVFILE
+
+Example:
+    python pocket2csv.py --input-file ril_export.html --output-file pocket.csv
+"""
 
 import csv
 import logging
@@ -10,7 +25,7 @@ from bs4 import BeautifulSoup
 logger = None
 
 
-def setup_logging():
+def setup_logging() -> None:
     """
     Initialize console logger and log format.
     """
@@ -21,13 +36,13 @@ def setup_logging():
     logger = logging.getLogger(__name__)
 
 
-def parse_command_line_args(args):
+def parse_command_line_args(args: list[str]) -> argparse.Namespace:
     """
     Parse the arguments passed via the command line.
 
     Parameters
     ----------
-    args : str
+    args : list[str]
         Raw command line arguments.
 
     Returns
@@ -53,12 +68,23 @@ def parse_command_line_args(args):
     return parser.parse_args(args)
 
 
-def convert_html(args):
+def convert_html(args: argparse.Namespace) -> None:
     """
-    Convert Pocket HTML file to CSV.
+    Convert Pocket HTML file to CSV format for Raindrop.io import.
 
-    :param args:
-    :return:
+    This function reads a Pocket HTML export file, extracts bookmark information
+    (URL, title, tags, creation date), and writes it to a CSV file in a format
+    compatible with Raindrop.io's import functionality.
+
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Command line arguments containing input_file and output_file paths.
+
+    Returns
+    -------
+    None
+        The function writes directly to the output file and doesn't return a value.
     """
 
     csv_rows = []
@@ -90,7 +116,7 @@ def convert_html(args):
         writer.writerows(csv_rows)
 
 
-def main():
+def main() -> None:
     setup_logging()
     parsed_args = parse_command_line_args(sys.argv[1:])
     convert_html(parsed_args)

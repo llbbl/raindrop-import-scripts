@@ -1,10 +1,32 @@
 # raindrop-import-scripts
+
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Poetry](https://img.shields.io/endpoint?url=https://python-poetry.org/badge/v0.json)](https://python-poetry.org/)
+[![Maintenance](https://img.shields.io/badge/Maintained%3F-yes-green.svg)](https://github.com/llbbl/raindrop-import-scripts/graphs/commit-activity)
+
 A collection of import scripts for raindrop.io
 
 ## Installation
 1. Clone this repository
-2. Install the dependencies: pipenv install
-3. Run the scripts, see below for specific examples
+2. Install Poetry (if not already installed):
+   ```bash
+   curl -sSL https://install.python-poetry.org | python3 -
+   ```
+3. Install the dependencies:
+   ```bash
+   poetry install
+   ```
+4. Run the scripts using Poetry:
+   ```bash
+   poetry run python evernote/enex2csv.py --input-file export.enex --output-file evernote.csv
+   ```
+   Or activate the Poetry shell first:
+   ```bash
+   poetry shell
+   python evernote/enex2csv.py --input-file export.enex --output-file evernote.csv
+   ```
+5. See below for specific examples
 
 ## Evernote import
 
@@ -27,5 +49,3 @@ Example Usage:
 ```bash
 python pocket2csv.py --input-file ril_export.html --output-file pocket.csv
 ```
-
-

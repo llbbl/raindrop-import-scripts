@@ -1,8 +1,21 @@
 """
-Convert Evernote ENEX files to CSV, optionally converting note content to Markdown.
+Convert Evernote ENEX files to CSV format for import into Raindrop.io.
+
+This module provides functionality to parse Evernote export files (.enex) and convert them
+to CSV format that can be imported into Raindrop.io bookmark manager. It extracts note titles,
+content, creation dates, modification dates, tags, and other metadata from the ENEX file.
+
+The module can optionally convert HTML note content to Markdown format for better readability
+and compatibility with Raindrop.io's import system.
+
+This is a fork of the project [YuriyGuts/enex2csv](https://github.com/YuriyGuts/enex2csv)
+modified specifically to work with raindrop.io's import requirements.
 
 Usage:
-enex2csv.py [-h] --input-file ENEXFILE --output-file CSVFILE [--use-markdown]
+    enex2csv.py [-h] --input-file ENEXFILE --output-file CSVFILE [--use-markdown] [--verbose]
+
+Example:
+    python enex2csv.py --input-file export.enex --output-file evernote.csv --use-markdown
 """
 
 import argparse
@@ -18,9 +31,9 @@ from lxml import etree
 logger = None
 
 
-def setup_logging():
+def setup_logging() -> None:
     """
-    Initilialize console logger and log format.
+    Initialize console logger and log format.
     """
     global logger
     log_format = "%(asctime)s | %(levelname)8s | %(message)s"
@@ -29,13 +42,13 @@ def setup_logging():
     logger = logging.getLogger(__name__)
 
 
-def parse_command_line_args(args):
+def parse_command_line_args(args: list[str]) -> argparse.Namespace:
     """
     Parse the arguments passed via the command line.
 
     Parameters
     ----------
-    args : str
+    args : list[str]
         Raw command line arguments.
 
     Returns
@@ -67,7 +80,7 @@ def parse_command_line_args(args):
     return parsed_args
 
 
-def read_enex(enex_filename):
+def read_enex(enex_filename: str) -> etree.ElementTree:
     """
     Parse ENEX file as XML.
 
@@ -78,7 +91,7 @@ def read_enex(enex_filename):
 
     Returns
     -------
-    ElementTree
+    etree.ElementTree
         Parsed XML tree.
     """
     logger.info(f'Parsing input file "{enex_filename}"')
@@ -92,13 +105,13 @@ def read_enex(enex_filename):
             raise
 
 
-def xpath_first_or_default(node, query, default, formatter=None):
+def xpath_first_or_default(node: etree._Element, query: str, default: object, formatter: callable = None) -> object:
     """
     Select the first results from an XPath query or fall back to a default value.
 
     Parameters
     ----------
-    node : Element
+    node : etree._Element
         XML node.
     query : str
         XPath query.
@@ -123,7 +136,7 @@ def xpath_first_or_default(node, query, default, formatter=None):
     return default
 
 
-def html_to_markdown(html):
+def html_to_markdown(html: str) -> str:
     """
     Convert HTML content to Markdown.
 
@@ -142,7 +155,7 @@ def html_to_markdown(html):
     return converter.handle(html)
 
 
-def parse_xml_date(date_str):
+def parse_xml_date(date_str: str) -> datetime.datetime:
     """
     Parse an ISO datetime value from ENEX.
 
@@ -153,7 +166,7 @@ def parse_xml_date(date_str):
 
     Returns
     -------
-    datetime
+    datetime.datetime
         Extracted datetime value.
     """
     if date_str.startswith("0000"):
@@ -162,13 +175,13 @@ def parse_xml_date(date_str):
     return date
 
 
-def extract_note_records(xml_tree, use_markdown):
+def extract_note_records(xml_tree: etree.ElementTree, use_markdown: bool) -> list[dict]:
     """
     Extract notes as dictionaries.
 
     Parameters
     ----------
-    xml_tree : ElementTree
+    xml_tree : etree.ElementTree
         Parsed ENEX XML tree
     use_markdown : bool
         Whether to convert note content to Markdown. Otherwise, use raw XML/HTML.
@@ -213,7 +226,7 @@ def extract_note_records(xml_tree, use_markdown):
     return records
 
 
-def write_csv(csv_filename, note_records):
+def write_csv(csv_filename: str, note_records: list[dict]) -> None:
     """
     Write parsed note records as CSV.
 
@@ -221,8 +234,13 @@ def write_csv(csv_filename, note_records):
     ----------
     csv_filename : str
         Output CSV file path.
-    records : list[dict]
+    note_records : list[dict]
         Extracted note records.
+
+    Returns
+    -------
+    None
+        The function writes directly to the output file and doesn't return a value.
     """
     logger.info(f'Writing CSV output to "{csv_filename}"')
     with open(csv_filename, "w", encoding="utf-8") as csv_fd:
@@ -244,7 +262,7 @@ def convert_enex(parsed_args):
     """
     xml_tree = read_enex(parsed_args.input_file)
     records = extract_note_records(xml_tree, parsed_args.use_markdown)
-    if len(records) < 0:
+    if len(records) <= 0:
         logger.error("No records found to convert")
         return
     write_csv(parsed_args.output_file, records)
