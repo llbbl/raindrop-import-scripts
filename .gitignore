@@ -13,6 +13,8 @@ htmlcov/
 #ENV
 raindrop_import.yaml
 .env
+.env.local
 
+# Cache
 __pycache__/
 .pytest_cache/

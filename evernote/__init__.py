@@ -9,7 +9,8 @@ from typing import List
 
 from common.cli import create_base_parser, parse_args
 from common.plugins import BaseImportPlugin, register_plugin
-from evernote.enex2csv import convert_enex
+from common.logging import get_logger
+from evernote.enex2csv import EvernoteConverter
 
 
 @register_plugin
@@ -80,4 +81,5 @@ class EvernoteImportPlugin(BaseImportPlugin):
         None
             The function processes files and doesn't return a value.
         """
-        convert_enex(args)
+        converter = EvernoteConverter(get_logger())
+        converter.convert_enex(args)
