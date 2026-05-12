@@ -1,20 +1,45 @@
+# Editors
 .idea/
 .vscode/
-*.csv
 .DS_Store
+
+# Agent / tooling configs
+.beads/
+.claude/
+CLAUDE.md
+AGENTS.md
+
+# Data
+*.csv
+.output.txt
 
 # Coverage files
 .coverage
 .coverage.*
 coverage.xml
 htmlcov/
-.output.txt
 
-#ENV
+# Env / config
 raindrop_import.yaml
 .env
 .env.local
+.env.*.local
+
+# Python build artifacts
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+
+# Virtualenvs
+.venv/
+venv/
+env/
 
 # Cache
 __pycache__/
 .pytest_cache/
+.ruff_cache/
+.ty_cache/
+.mypy_cache/
