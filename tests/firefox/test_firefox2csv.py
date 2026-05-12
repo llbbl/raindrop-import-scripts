@@ -176,6 +176,91 @@ class TestFirefoxBookmarkConverter:
         mock_writer.writeheader.assert_called_once()
         mock_writer.writerow.assert_called()
 
+    @pytest.mark.xfail(
+        reason=(
+            "Real bug: FirefoxBookmarkConverter.write_csv_file constructs "
+            "csv.DictWriter without quoting=csv.QUOTE_ALL, so output is not "
+            "consistently quoted (diverges from chrome reference). Cycle 3d "
+            "(BaseConverter) or a follow-up should standardize csv.DictWriter kwargs."
+        ),
+        strict=True,
+    )
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.DictWriter")
+    def test_write_csv_file_uses_quote_all(self, mock_dict_writer, mock_file):
+        """write_csv_file must configure DictWriter with QUOTE_ALL semantics."""
+        import csv as csv_module
+
+        mock_dict_writer.return_value = MagicMock()
+        records = [
+            {
+                "title": "Example",
+                "url": "http://example.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder1",
+            }
+        ]
+
+        self.converter.write_csv_file(records)
+        kwargs = mock_dict_writer.call_args.kwargs
+        assert kwargs.get("quoting") == csv_module.QUOTE_ALL
+        assert kwargs.get("delimiter") == ","
+        assert kwargs.get("lineterminator") == "\n"
+        assert kwargs.get("quotechar") == '"'
+
+    def test_write_csv_file_applies_field_mappings(self):
+        """write_csv_file should call map_rows when field_mappings is provided."""
+        records = [
+            {
+                "title": "Example",
+                "url": "http://example.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder1",
+            }
+        ]
+        field_mappings = {"title": "renamed_title", "url": "renamed_url"}
+
+        with (
+            patch("firefox.firefox2csv.map_rows") as mock_map_rows,
+            patch("builtins.open", new_callable=mock_open),
+            patch("csv.DictWriter") as mock_dict_writer,
+        ):
+            mock_map_rows.return_value = [
+                {"renamed_title": "Example", "renamed_url": "http://example.com"}
+            ]
+            mock_dict_writer.return_value = MagicMock()
+            self.converter.write_csv_file(records, field_mappings=field_mappings)
+
+            mock_map_rows.assert_called_once()
+            assert list(mock_dict_writer.call_args.kwargs["fieldnames"]) == [
+                "renamed_title",
+                "renamed_url",
+            ]
+
+    def test_write_csv_file_preview_mode(self):
+        """write_csv_file should invoke preview_items with the configured limit + kwargs."""
+        records = [
+            {
+                "title": "Example",
+                "url": "http://example.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "",
+            }
+        ]
+        with (
+            patch("firefox.firefox2csv.preview_items") as mock_preview,
+            patch("builtins.open", new_callable=mock_open),
+            patch("csv.DictWriter"),
+        ):
+            self.converter.write_csv_file(records, preview=True, preview_limit=5)
+            mock_preview.assert_called_once()
+            kwargs = mock_preview.call_args.kwargs
+            assert kwargs["limit"] == 5
+            assert kwargs["title_field"] == "title"
+            assert kwargs["url_field"] == "url"
+            assert kwargs["tags_field"] == "tags"
+            assert kwargs["created_field"] == "created"
+
     def test_write_csv_file_dry_run(self):
         """Test that write_csv_file in dry-run mode doesn't write to a file."""
         # Create records

@@ -376,6 +376,70 @@ class TestEvernoteConverter:
         self.mock_logger.info.assert_any_call("  - title -> name")
         self.mock_logger.info.assert_any_call("  - description -> content")
 
+    @pytest.mark.xfail(
+        reason=(
+            "Real bug: EvernoteConverter.write_csv constructs csv.DictWriter "
+            "without quoting=csv.QUOTE_ALL, so output is not consistently quoted "
+            "(diverges from chrome reference). Cycle 3d (BaseConverter) or a "
+            "follow-up should standardize csv.DictWriter kwargs."
+        ),
+        strict=True,
+    )
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.DictWriter")
+    def test_write_csv_uses_quote_all(self, mock_dict_writer, mock_file):
+        """write_csv must configure DictWriter with QUOTE_ALL semantics."""
+        import csv as csv_module
+
+        mock_dict_writer.return_value = MagicMock()
+        records = [{"title": "Note 1", "description": "Content 1"}]
+
+        self.converter.write_csv("output.csv", records)
+        kwargs = mock_dict_writer.call_args.kwargs
+        assert kwargs.get("quoting") == csv_module.QUOTE_ALL
+        assert kwargs.get("delimiter") == ","
+        assert kwargs.get("lineterminator") == "\n"
+        assert kwargs.get("quotechar") == '"'
+
+    @pytest.mark.xfail(
+        reason=(
+            "Real bug: convert_enex accesses args.use_markdown directly (not via "
+            "getattr), so a Namespace lacking that attr raises AttributeError. "
+            "Cycle 3c (constructor/arg normalization) should fix this."
+        ),
+        raises=AttributeError,
+        strict=True,
+    )
+    @patch("os.access", return_value=True)
+    @patch("os.path.isfile", return_value=True)
+    @patch("os.path.exists", return_value=True)
+    @patch("evernote.enex2csv.apply_field_mappings", return_value={})
+    @patch("evernote.enex2csv.EvernoteConverter.read_enex_file")
+    @patch("evernote.enex2csv.EvernoteConverter.parse_enex")
+    @patch("evernote.enex2csv.EvernoteConverter.extract_note_records")
+    @patch("evernote.enex2csv.EvernoteConverter.write_csv")
+    def test_convert_enex_defensive_arg_access(
+        self,
+        mock_write_csv,
+        mock_extract_records,
+        mock_parse_enex,
+        mock_read_file,
+        mock_apply,
+        mock_exists,
+        mock_isfile,
+        mock_access,
+    ):
+        """convert_enex should not crash when optional args are missing from Namespace."""
+        mock_read_file.return_value = "test content"
+        mock_parse_enex.return_value = "parsed"
+        mock_extract_records.return_value = [{"title": "Note 1"}]
+
+        # Namespace missing dry_run/preview/preview_limit/use_markdown/filter_*
+        args = argparse.Namespace(input_file="input.enex", output_file="output.csv")
+        # Should not raise AttributeError
+        self.converter.convert_enex(args)
+        mock_write_csv.assert_called_once()
+
     @patch("evernote.enex2csv.EvernoteConverter.parse_command_line_args")
     @patch("evernote.enex2csv.EvernoteConverter")
     def test_main(self, mock_converter_class, mock_parse_args):

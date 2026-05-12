@@ -251,6 +251,124 @@ class TestPocket2Csv:
         # Check that write_csv_file was not called
         mock_write_csv.assert_not_called()
 
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.DictWriter")
+    def test_write_csv_file_uses_quote_all(self, mock_dict_writer, mock_file):
+        """write_csv_file must configure DictWriter with QUOTE_ALL semantics."""
+        import csv as csv_module
+
+        mock_dict_writer.return_value = MagicMock()
+        records = [{"title": "Example", "url": "http://example.com", "tags": "t1"}]
+
+        self.converter.write_csv_file("output.csv", records)
+        kwargs = mock_dict_writer.call_args.kwargs
+        assert kwargs["quoting"] == csv_module.QUOTE_ALL
+        assert kwargs["delimiter"] == ","
+        assert kwargs["lineterminator"] == "\n"
+        assert kwargs["quotechar"] == '"'
+
+    def test_write_csv_file_applies_field_mappings(self):
+        """write_csv_file should call map_rows when field_mappings is provided."""
+        records = [{"title": "Example", "url": "http://example.com"}]
+        field_mappings = {"title": "renamed_title", "url": "renamed_url"}
+
+        with (
+            patch("pocket.pocket2csv.map_rows") as mock_map_rows,
+            patch("builtins.open", new_callable=mock_open),
+            patch("csv.DictWriter") as mock_dict_writer,
+        ):
+            mock_map_rows.return_value = [
+                {"renamed_title": "Example", "renamed_url": "http://example.com"}
+            ]
+            mock_dict_writer.return_value = MagicMock()
+            self.converter.write_csv_file("output.csv", records, field_mappings=field_mappings)
+
+            mock_map_rows.assert_called_once()
+            assert list(mock_dict_writer.call_args.kwargs["fieldnames"]) == [
+                "renamed_title",
+                "renamed_url",
+            ]
+
+    def test_write_csv_file_preview_mode(self):
+        """write_csv_file should invoke preview_items with the configured limit + kwargs."""
+        records = [
+            {
+                "title": "Example",
+                "url": "http://example.com",
+                "tags": "",
+                "created": "01/01/2020",
+                "description": "desc",
+            }
+        ]
+        with (
+            patch("pocket.pocket2csv.preview_items") as mock_preview,
+            patch("builtins.open", new_callable=mock_open),
+            patch("csv.DictWriter"),
+        ):
+            self.converter.write_csv_file("output.csv", records, preview=True, preview_limit=5)
+            mock_preview.assert_called_once()
+            kwargs = mock_preview.call_args.kwargs
+            assert kwargs["limit"] == 5
+            assert kwargs["title_field"] == "title"
+            assert kwargs["url_field"] == "url"
+            assert kwargs["tags_field"] == "tags"
+            assert kwargs["created_field"] == "created"
+            assert kwargs["description_field"] == "description"
+
+    @patch("pocket.pocket2csv.PocketConverter.read_html_file")
+    @patch("pocket.pocket2csv.PocketConverter.parse_html_content")
+    @patch("pocket.pocket2csv.PocketConverter.extract_bookmarks")
+    @patch("pocket.pocket2csv.PocketConverter.write_csv_file")
+    @patch("pocket.pocket2csv.apply_field_mappings", return_value={})
+    def test_convert_html_defensive_arg_access(
+        self,
+        mock_apply,
+        mock_write_csv,
+        mock_extract_bookmarks,
+        mock_parse_html,
+        mock_read_file,
+    ):
+        """convert_html should not crash when optional args are missing from Namespace."""
+        mock_read_file.return_value = "html content"
+        mock_parse_html.return_value = MagicMock()
+        mock_extract_bookmarks.return_value = [{"title": "Example"}]
+
+        # Namespace missing dry_run/preview/preview_limit/filter_*/field_mappings
+        args = argparse.Namespace(input_file="input.html", output_file="output.csv")
+        # Should not raise AttributeError
+        self.converter.convert_html(args)
+        mock_write_csv.assert_called_once()
+
+    @pytest.mark.xfail(
+        reason=(
+            "Real bug: PocketConverter() with no logger arg calls get_logger(), "
+            "which raises RuntimeError if setup_logging() has not been called. "
+            "Cycle 3c (constructor normalization) should fix this."
+        ),
+        raises=RuntimeError,
+        strict=True,
+    )
+    def test_converter_construction_without_main_logger(self):
+        """Regression: instantiating the converter without main()/setup_logging must not crash.
+
+        Mirrors chrome's test_process_bookmark_node_without_main_logger. In pocket,
+        the failure surfaces at construction time because PocketConverter falls
+        back to get_logger(), which raises RuntimeError if setup_logging() has
+        not been called this process.
+        """
+        # Stop the setup_method logger patcher so we test the real fallback.
+        self.logger_patcher.stop()
+        try:
+            # Force common.logging into the uninitialized state to simulate a
+            # fresh process where setup_logging() has not yet been called.
+            with patch("common.logging.logger", None):
+                # Should NOT raise
+                converter = PocketConverter()
+                assert converter is not None
+        finally:
+            # Restart so teardown_method's stop() balances cleanly.
+            self.logger_patcher.start()
+
     @patch("pocket.pocket2csv.setup_logging")
     @patch("pocket.pocket2csv.get_logger")
     @patch("pocket.pocket2csv.PocketConverter.run")
