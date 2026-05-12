@@ -11,21 +11,15 @@ class TestPocket2Csv:
 
     def setup_method(self):
         """Set up the test environment."""
-        # Set up a logger mock
-        self.logger_patcher = patch("pocket.pocket2csv.logger")
-        self.mock_logger = self.logger_patcher.start()
-
-        # Initialize the global logger variable
-        import pocket.pocket2csv
-
-        pocket.pocket2csv.logger = self.mock_logger
-
-        # Create a PocketConverter instance
-        self.converter = PocketConverter(self.mock_logger)
+        # Inject a mock logger directly so converter methods work without
+        # main()/setup_logging() having been called.
+        self.mock_logger = MagicMock()
+        self.converter = PocketConverter("input.html", "output.csv", logger=self.mock_logger)
 
     def teardown_method(self):
         """Tear down the test environment."""
-        self.logger_patcher.stop()
+        # No global logger patch to clean up.
+        pass
 
     @patch("argparse.ArgumentParser")
     def test_parse_command_line_args(self, mock_arg_parser):
@@ -339,49 +333,40 @@ class TestPocket2Csv:
         self.converter.convert_html(args)
         mock_write_csv.assert_called_once()
 
-    @pytest.mark.xfail(
-        reason=(
-            "Real bug: PocketConverter() with no logger arg calls get_logger(), "
-            "which raises RuntimeError if setup_logging() has not been called. "
-            "Cycle 3c (constructor normalization) should fix this."
-        ),
-        raises=RuntimeError,
-        strict=True,
-    )
     def test_converter_construction_without_main_logger(self):
         """Regression: instantiating the converter without main()/setup_logging must not crash.
 
         Mirrors chrome's test_process_bookmark_node_without_main_logger. In pocket,
-        the failure surfaces at construction time because PocketConverter falls
-        back to get_logger(), which raises RuntimeError if setup_logging() has
-        not been called this process.
+        the failure used to surface at construction time because PocketConverter
+        fell back to get_logger(), which previously raised RuntimeError if
+        setup_logging() had not been called this process. Cycle 3c made
+        get_logger() fall back to a default logger.
         """
-        # Stop the setup_method logger patcher so we test the real fallback.
-        self.logger_patcher.stop()
-        try:
-            # Force common.logging into the uninitialized state to simulate a
-            # fresh process where setup_logging() has not yet been called.
-            with patch("common.logging.logger", None):
-                # Should NOT raise
-                converter = PocketConverter()
-                assert converter is not None
-        finally:
-            # Restart so teardown_method's stop() balances cleanly.
-            self.logger_patcher.start()
+        # Force common.logging into the uninitialized state to simulate a
+        # fresh process where setup_logging() has not yet been called.
+        with patch("common.logging.logger", None):
+            # Should NOT raise
+            converter = PocketConverter("input.html", "output.csv")
+            assert converter is not None
+            assert converter.logger is not None
 
+    @patch("pocket.pocket2csv.PocketConverter.convert_html")
     @patch("pocket.pocket2csv.setup_logging")
     @patch("pocket.pocket2csv.get_logger")
-    @patch("pocket.pocket2csv.PocketConverter.run")
-    def test_main(self, mock_run, mock_get_logger, mock_setup_logging):
-        """Test that main correctly sets up the environment and calls the converter's run method."""
-        # Set up mocks
+    @patch("pocket.pocket2csv.parse_args")
+    def test_main(self, mock_parse_args, mock_get_logger, mock_setup_logging, mock_convert_html):
+        """Test that main parses args, configures logging, then converts."""
         mock_logger = MagicMock()
         mock_get_logger.return_value = mock_logger
+        mock_parse_args.return_value = argparse.Namespace(
+            input_file="input.html",
+            output_file="output.csv",
+            log_file=None,
+        )
 
-        # Call main
         main()
 
-        # Check that the functions were called with the correct arguments
-        mock_setup_logging.assert_called_once()
+        mock_parse_args.assert_called_once()
+        mock_setup_logging.assert_called_once_with(None)
         mock_get_logger.assert_called_once()
-        mock_run.assert_called_once()
+        mock_convert_html.assert_called_once()

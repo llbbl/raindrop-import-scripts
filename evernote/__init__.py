@@ -81,5 +81,5 @@ class EvernoteImportPlugin(BaseImportPlugin):
         None
             The function processes files and doesn't return a value.
         """
-        converter = EvernoteConverter(get_logger())
+        converter = EvernoteConverter(args.input_file, args.output_file, get_logger())
         converter.convert_enex(args)

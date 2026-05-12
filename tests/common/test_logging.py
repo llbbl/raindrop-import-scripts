@@ -58,15 +58,21 @@ class TestLogging:
             assert file_handlers[0].baseFilename == temp_file.name
 
     def test_get_logger_without_setup(self):
-        """Test that get_logger raises a RuntimeError if setup_logging hasn't been called."""
+        """get_logger() falls back to a default logger when setup_logging() has not run.
+
+        Cycle 3c: callers (notably converter __init__) should be able to use
+        ``logger or get_logger()`` without first calling ``setup_logging()``.
+        Previously this raised RuntimeError; now it returns a usable logger.
+        """
         # Reset the logger before testing
         import common.logging
         common.logging.logger = None
 
-        # Try to get the logger without setting it up
-        with pytest.raises(RuntimeError) as excinfo:
-            get_logger()
-        assert "Logger not initialized" in str(excinfo.value)
+        # Should not raise
+        logger = get_logger()
+        assert logger is not None
+        # And the module-level cache should now be populated
+        assert common.logging.logger is logger
 
     def test_setup_logging_invalid_file(self, monkeypatch, capsys):
         """Test that setup_logging handles invalid log files gracefully."""

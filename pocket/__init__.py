@@ -76,5 +76,5 @@ class PocketImportPlugin(BaseImportPlugin):
         None
             The function processes files and doesn't return a value.
         """
-        converter = PocketConverter(get_logger())
+        converter = PocketConverter(args.input_file, args.output_file, get_logger())
         converter.convert_html(args)

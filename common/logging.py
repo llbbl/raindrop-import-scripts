@@ -62,16 +62,25 @@ def get_logger() -> logging.Logger:
     """
     Get the configured logger instance.
 
+    If ``setup_logging()`` has not been called yet, fall back to a default
+    logger configured with a basic handler. This avoids forcing every caller
+    (notably converter classes constructed without an explicit logger) to
+    sequence ``setup_logging()`` before instantiation, while still letting
+    ``setup_logging()`` reconfigure handlers when invoked.
+
     Returns
     -------
     logging.Logger
         The configured logger instance.
-
-    Raises
-    ------
-    RuntimeError
-        If setup_logging has not been called before this function.
     """
+    global logger
     if logger is None:
-        raise RuntimeError("Logger not initialized. Call setup_logging() first.")
+        # Default fallback: emit to stderr at INFO. setup_logging() may later
+        # replace handlers; we just need a usable logger right now.
+        logger = logging.getLogger(__name__)
+        if not logger.handlers:
+            handler = logging.StreamHandler(stream=sys.stderr)
+            handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)8s | %(message)s"))
+            logger.addHandler(handler)
+        logger.setLevel(logging.INFO)
     return logger

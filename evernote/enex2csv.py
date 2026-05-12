@@ -44,32 +44,29 @@ class EvernoteConverter:
     Convert Evernote ENEX files to CSV format for import into Raindrop.io.
     """
 
-    def __init__(self, logger: Optional[logging.Logger] = None):
+    def __init__(
+        self,
+        input_file: str,
+        output_file: str,
+        logger: Optional[logging.Logger] = None,
+    ):
         """
         Initialize the converter.
 
         Parameters
         ----------
+        input_file : str
+            Path to the input ENEX file.
+        output_file : str
+            Path to the output CSV file.
         logger : logging.Logger, optional
-            Logger instance to use. If not provided, one will be created.
+            Logger instance to use. If None, one is obtained via
+            ``get_logger()`` (which falls back to a default logger when
+            ``setup_logging()`` has not been invoked yet).
         """
-        self.logger = logger or self._get_or_setup_logger()
-
-    def _get_or_setup_logger(self) -> logging.Logger:
-        """
-        Get the logger, initializing it if necessary.
-
-        Returns
-        -------
-        logging.Logger
-            The configured logger instance.
-        """
-        try:
-            return get_logger()
-        except RuntimeError:
-            # Logger not initialized, set it up with default settings
-            setup_logging()
-            return get_logger()
+        self.input_file = input_file
+        self.output_file = output_file
+        self.logger = logger or get_logger()
 
     @staticmethod
     def parse_command_line_args(args: list[str]) -> argparse.Namespace:
@@ -408,11 +405,11 @@ class EvernoteConverter:
             The function processes files and doesn't return a value.
         """
         # Validate input and output files
-        validate_input_file(args.input_file)
-        validate_output_file(args.output_file)
+        validate_input_file(self.input_file)
+        validate_output_file(self.output_file)
 
         # Read and parse ENEX file
-        enex_content = self.read_enex_file(args.input_file)
+        enex_content = self.read_enex_file(self.input_file)
         xml_tree = self.parse_enex(enex_content)
 
         # Get filtering options
@@ -439,7 +436,7 @@ class EvernoteConverter:
         # Extract note records with filters
         note_records = self.extract_note_records(
             xml_tree,
-            args.use_markdown,
+            getattr(args, "use_markdown", False),
             filter_tag=filter_tag,
             filter_date_from=filter_date_from,
             filter_date_to=filter_date_to,
@@ -480,7 +477,7 @@ class EvernoteConverter:
 
         # Write CSV file
         self.write_csv(
-            args.output_file,
+            self.output_file,
             note_records,
             field_mappings,
             preview=preview,
@@ -492,7 +489,8 @@ class EvernoteConverter:
     def main():
         try:
             args = EvernoteConverter.parse_command_line_args(sys.argv[1:])
-            converter = EvernoteConverter()
+            setup_logging(getattr(args, "log_file", None))
+            converter = EvernoteConverter(args.input_file, args.output_file, get_logger())
             converter.convert_enex(args)
         except Exception as e:
             print(f"Error: {str(e)}", file=sys.stderr)

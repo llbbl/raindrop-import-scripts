@@ -31,9 +31,6 @@ from common.validation import validate_input_file, validate_output_file
 from common.field_mapping import apply_field_mappings, map_rows
 from common.preview import preview_items
 
-# Define logger at module level but don't initialize it yet
-logger = None
-
 
 class PocketConverter:
     """
@@ -43,15 +40,23 @@ class PocketConverter:
     extract bookmark information, and write it to a CSV file for import into Raindrop.io.
     """
 
-    def __init__(self, logger=None):
+    def __init__(self, input_file: str, output_file: str, logger=None):
         """
         Initialize the PocketConverter.
 
         Parameters
         ----------
+        input_file : str
+            Path to the input Pocket HTML export file.
+        output_file : str
+            Path to the output CSV file.
         logger : logging.Logger, optional
-            Logger instance to use for logging. If None, a new logger will be created.
+            Logger instance to use for logging. If None, one will be obtained
+            via ``get_logger()`` (which falls back to a default logger when
+            ``setup_logging()`` has not run yet).
         """
+        self.input_file = input_file
+        self.output_file = output_file
         self.logger = logger or get_logger()
 
     def parse_command_line_args(self, args: list[str]) -> argparse.Namespace:
@@ -443,7 +448,7 @@ class PocketConverter:
             The method writes directly to the output file and doesn't return a value.
         """
         # Read and parse HTML file
-        html_content = self.read_html_file(args.input_file)
+        html_content = self.read_html_file(self.input_file)
         soup = self.parse_html_content(html_content)
 
         # Extract bookmarks with filtering
@@ -510,7 +515,7 @@ class PocketConverter:
 
         # Write output file
         self.write_csv_file(
-            args.output_file,
+            self.output_file,
             csv_rows,
             field_mappings,
             preview=preview,
@@ -523,27 +528,6 @@ class PocketConverter:
         else:
             self.logger.info(f"Successfully converted {len(csv_rows)} bookmarks to CSV")
 
-    def run(self, args: Optional[list[str]] = None) -> None:
-        """
-        Run the conversion process.
-
-        This method parses command line arguments and initiates the conversion process.
-
-        Parameters
-        ----------
-        args : list[str], optional
-            Command line arguments. If None, sys.argv[1:] will be used.
-
-        Returns
-        -------
-        None
-        """
-        if args is None:
-            args = sys.argv[1:]
-
-        parsed_args = self.parse_command_line_args(args)
-        self.convert_html(parsed_args)
-
 
 def main() -> None:
     """
@@ -555,14 +539,18 @@ def main() -> None:
     -------
     None
     """
-    global logger
-    # Set up logging first
-    setup_logging()
+    # Parse args first to honor --log-file
+    parser = create_base_parser("Convert Pocket HTML file to CSV")
+    parser._option_string_actions["--input-file"].metavar = "HTMLFILE"
+    parser._option_string_actions["--input-file"].help = "Input HTML file path"
+    parsed_args = parse_args(parser, sys.argv[1:])
+
+    setup_logging(getattr(parsed_args, "log_file", None))
     logger = get_logger()
 
     # Create converter and run
-    converter = PocketConverter(logger)
-    converter.run()
+    converter = PocketConverter(parsed_args.input_file, parsed_args.output_file, logger)
+    converter.convert_html(parsed_args)
 
 
 if __name__ == "__main__":

@@ -14,14 +14,15 @@ class TestEvernoteConverter:
 
     def setup_method(self):
         """Set up the test environment."""
-        # Set up a logger mock
-        self.logger_patcher = patch("evernote.enex2csv.get_logger")
-        self.mock_logger = self.logger_patcher.start()
-        self.converter = EvernoteConverter(self.mock_logger)
+        # Inject a mock logger directly so converter methods work without
+        # main()/setup_logging() having been called.
+        self.mock_logger = MagicMock()
+        self.converter = EvernoteConverter("input.enex", "output.csv", logger=self.mock_logger)
 
     def teardown_method(self):
         """Tear down the test environment."""
-        self.logger_patcher.stop()
+        # No global logger patch to clean up.
+        pass
 
     @patch("argparse.ArgumentParser")
     def test_parse_command_line_args(self, mock_arg_parser):
@@ -401,15 +402,6 @@ class TestEvernoteConverter:
         assert kwargs.get("lineterminator") == "\n"
         assert kwargs.get("quotechar") == '"'
 
-    @pytest.mark.xfail(
-        reason=(
-            "Real bug: convert_enex accesses args.use_markdown directly (not via "
-            "getattr), so a Namespace lacking that attr raises AttributeError. "
-            "Cycle 3c (constructor/arg normalization) should fix this."
-        ),
-        raises=AttributeError,
-        strict=True,
-    )
     @patch("os.access", return_value=True)
     @patch("os.path.isfile", return_value=True)
     @patch("os.path.exists", return_value=True)
