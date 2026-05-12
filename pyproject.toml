@@ -20,6 +20,8 @@ python-dotenv = "^1.1.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.5"
 pytest-cov = "^6.1.1"
+ruff = "^0.15.12"
+ty = "^0.0.35"
 
 [tool.poetry.scripts]
 test = "pytest:main"
@@ -27,6 +29,21 @@ test-cov = "pytest:main"
 
 [tool.pytest.ini_options]
 addopts = "--cov=. --cov-report=xml --cov-report=term"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["__pycache__", ".venv", "coverage.xml"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+ignore = ["E501"]
+
+[tool.ty.environment]
+python-version = "3.11"
+
+[tool.ty.src]
+exclude = ["**/__pycache__", ".venv", "tests/**"]
 
 
 
