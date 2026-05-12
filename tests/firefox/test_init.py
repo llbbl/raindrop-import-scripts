@@ -1,6 +1,6 @@
-import pytest
 import argparse
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
 from firefox import FirefoxImportPlugin
 
 
@@ -20,36 +20,46 @@ class TestFirefoxImportPlugin:
     def test_create_parser(self):
         """Test that create_parser creates a parser with the expected arguments."""
         parser = FirefoxImportPlugin.create_parser()
-        
+
         # Check that the parser has the expected description
         assert parser.description == FirefoxImportPlugin.get_description()
-        
+
         # Check that the parser has the expected arguments
         arguments = {action.dest: action for action in parser._actions}
         assert "input_file" in arguments
         assert "output_file" in arguments
         assert "log_file" in arguments
-        
+
         # Check that the required arguments are marked as required
         assert arguments["input_file"].required
         assert arguments["output_file"].required
         assert not arguments["log_file"].required
-        
+
         # Check that the input file argument has the correct metavar and help
         assert arguments["input_file"].metavar == "JSONFILE"
         assert "Input JSON file path" in arguments["input_file"].help
 
-    @patch("firefox.convert_json")
-    def test_convert(self, mock_convert_json):
-        """Test that convert calls convert_json with the correct arguments."""
-        # Create mock args
+    @patch("firefox.FirefoxBookmarkConverter")
+    def test_convert(self, mock_converter_cls):
+        """Test that convert instantiates FirefoxBookmarkConverter and calls convert."""
+        mock_converter = MagicMock()
+        mock_converter_cls.return_value = mock_converter
+
         args = argparse.Namespace(
             input_file="input.json",
-            output_file="output.csv"
+            output_file="output.csv",
+            field_mappings=None,
+            preview=False,
+            preview_limit=10,
+            dry_run=False,
         )
-        
-        # Call convert
+
         FirefoxImportPlugin.convert(args)
-        
-        # Check that convert_json was called with the correct arguments
-        mock_convert_json.assert_called_once_with(args)
+
+        mock_converter_cls.assert_called_once()
+        mock_converter.convert.assert_called_once_with(
+            field_mappings=None,
+            preview=False,
+            preview_limit=10,
+            dry_run=False,
+        )

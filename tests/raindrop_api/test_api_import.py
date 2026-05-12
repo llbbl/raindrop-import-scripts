@@ -2,24 +2,24 @@
 Tests for the raindrop_api.api_import module.
 """
 
-import os
-import sys
-import pytest
 import argparse
-import tempfile
-import json
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
+
 from raindrop_api.api_import import (
-    validate_api_token,
-    validate_client_credentials,
-    get_access_token,
-    test_api_connection,
-    get_collections,
-    read_csv_file,
     convert_bookmark_to_raindrop,
+    get_access_token,
+    get_collections,
     import_bookmarks,
     import_to_raindrop,
-    main
+    main,
+    read_csv_file,
+    validate_api_token,
+    validate_client_credentials,
+)
+from raindrop_api.api_import import (
+    test_api_connection as check_api_connection,
 )
 
 
@@ -34,6 +34,7 @@ class TestRaindropApiImport:
 
         # Initialize the global logger variable
         import raindrop_api.api_import
+
         raindrop_api.api_import.logger = self.mock_logger
 
     def teardown_method(self):
@@ -97,7 +98,7 @@ class TestRaindropApiImport:
         assert kwargs["data"] == {
             "grant_type": "client_credentials",
             "client_id": "valid_client_id",
-            "client_secret": "valid_client_secret"
+            "client_secret": "valid_client_secret",
         }
 
     @patch("raindrop_api.api_import.requests.post")
@@ -135,7 +136,7 @@ class TestRaindropApiImport:
         mock_response.json.return_value = {"user": {"name": "Test User"}}
         mock_get.return_value = mock_response
 
-        result = test_api_connection("valid_token")
+        result = check_api_connection("valid_token")
         assert result is True
         mock_get.assert_called_once()
 
@@ -148,7 +149,7 @@ class TestRaindropApiImport:
         mock_response.text = "Unauthorized"
         mock_get.return_value = mock_response
 
-        result = test_api_connection("invalid_token")
+        result = check_api_connection("invalid_token")
         assert result is False
         mock_get.assert_called_once()
 
@@ -158,7 +159,7 @@ class TestRaindropApiImport:
         # Mock an exception
         mock_get.side_effect = Exception("Connection error")
 
-        result = test_api_connection("valid_token")
+        result = check_api_connection("valid_token")
         assert result is False
         mock_get.assert_called_once()
 
@@ -188,7 +189,11 @@ class TestRaindropApiImport:
         assert result == []
         mock_get.assert_called_once()
 
-    @patch("builtins.open", new_callable=mock_open, read_data='title,url,tags\n"Example","http://example.com","tag1,tag2"')
+    @patch(
+        "builtins.open",
+        new_callable=mock_open,
+        read_data='title,url,tags\n"Example","http://example.com","tag1,tag2"',
+    )
     def test_read_csv_file(self, mock_file):
         """Test that read_csv_file correctly reads a CSV file."""
         result = read_csv_file("input.csv")
@@ -198,7 +203,7 @@ class TestRaindropApiImport:
         assert result[0]["url"] == "http://example.com"
         assert result[0]["tags"] == "tag1,tag2"
 
-    @patch("builtins.open", side_effect=IOError("File not found"))
+    @patch("builtins.open", side_effect=OSError("File not found"))
     def test_read_csv_file_error(self, mock_file):
         """Test that read_csv_file handles errors correctly."""
         with pytest.raises(IOError):
@@ -210,14 +215,14 @@ class TestRaindropApiImport:
             "title": "Example",
             "url": "http://example.com",
             "tags": "tag1,tag2",
-            "created": "2020-01-01 12:00:00"
+            "created": "2020-01-01 12:00:00",
         }
 
-        with patch("raindrop_api.api_import.parser") as mock_parser:
+        with patch("dateutil.parser.parse") as mock_parse:
             # Mock the date parser
             mock_date = MagicMock()
             mock_date.timestamp.return_value = 1577880000  # 2020-01-01 12:00:00 UTC
-            mock_parser.parse.return_value = mock_date
+            mock_parse.return_value = mock_date
 
             result = convert_bookmark_to_raindrop(bookmark, 1)
 
@@ -229,10 +234,7 @@ class TestRaindropApiImport:
 
     def test_convert_bookmark_to_raindrop_no_tags(self):
         """Test that convert_bookmark_to_raindrop handles bookmarks without tags."""
-        bookmark = {
-            "title": "Example",
-            "url": "http://example.com"
-        }
+        bookmark = {"title": "Example", "url": "http://example.com"}
 
         result = convert_bookmark_to_raindrop(bookmark, 1)
 
@@ -258,7 +260,7 @@ class TestRaindropApiImport:
         # Create bookmarks
         bookmarks = [
             {"title": "Example 1", "url": "http://example.com", "tags": "tag1,tag2"},
-            {"title": "Example 2", "url": "http://example.org", "tags": ""}
+            {"title": "Example 2", "url": "http://example.org", "tags": ""},
         ]
 
         # Import bookmarks
@@ -267,8 +269,8 @@ class TestRaindropApiImport:
         # Check that the API was called
         mock_post.assert_called_once()
 
-        # Check that the progress bar was updated
-        assert mock_progress_bar.update.call_count == 2
+        # Check that the progress bar was updated (one batch of 2)
+        mock_progress_bar.update.assert_called_once_with(2)
         assert mock_progress_bar.close.call_count == 1
 
         # Check the result
@@ -279,7 +281,7 @@ class TestRaindropApiImport:
         # Create bookmarks
         bookmarks = [
             {"title": "Example 1", "url": "http://example.com", "tags": "tag1,tag2"},
-            {"title": "Example 2", "url": "http://example.org", "tags": ""}
+            {"title": "Example 2", "url": "http://example.org", "tags": ""},
         ]
 
         # Import bookmarks in dry-run mode
@@ -293,7 +295,14 @@ class TestRaindropApiImport:
     @patch("raindrop_api.api_import.validate_input_file")
     @patch("raindrop_api.api_import.read_csv_file")
     @patch("raindrop_api.api_import.import_bookmarks")
-    def test_import_to_raindrop_with_api_token(self, mock_import_bookmarks, mock_read_csv, mock_validate_input, mock_test_connection, mock_validate_token):
+    def test_import_to_raindrop_with_api_token(
+        self,
+        mock_import_bookmarks,
+        mock_read_csv,
+        mock_validate_input,
+        mock_test_connection,
+        mock_validate_token,
+    ):
         """Test that import_to_raindrop correctly orchestrates the import process with API token authentication."""
         # Set up mocks
         mock_validate_token.return_value = "valid_token"
@@ -309,7 +318,7 @@ class TestRaindropApiImport:
             input_file="input.csv",
             collection_id=1,
             batch_size=50,
-            dry_run=False
+            dry_run=False,
         )
 
         # Import
@@ -328,7 +337,15 @@ class TestRaindropApiImport:
     @patch("raindrop_api.api_import.validate_input_file")
     @patch("raindrop_api.api_import.read_csv_file")
     @patch("raindrop_api.api_import.import_bookmarks")
-    def test_import_to_raindrop_with_oauth(self, mock_import_bookmarks, mock_read_csv, mock_validate_input, mock_test_connection, mock_get_access_token, mock_validate_credentials):
+    def test_import_to_raindrop_with_oauth(
+        self,
+        mock_import_bookmarks,
+        mock_read_csv,
+        mock_validate_input,
+        mock_test_connection,
+        mock_get_access_token,
+        mock_validate_credentials,
+    ):
         """Test that import_to_raindrop correctly orchestrates the import process with OAuth authentication."""
         # Set up mocks
         mock_validate_credentials.return_value = ("valid_client_id", "valid_client_secret")
@@ -346,7 +363,7 @@ class TestRaindropApiImport:
             input_file="input.csv",
             collection_id=1,
             batch_size=50,
-            dry_run=False
+            dry_run=False,
         )
 
         # Import
@@ -358,11 +375,15 @@ class TestRaindropApiImport:
         mock_test_connection.assert_called_once_with("valid_access_token")
         mock_validate_input.assert_called_once_with("input.csv")
         mock_read_csv.assert_called_once_with("input.csv")
-        mock_import_bookmarks.assert_called_once_with(mock_bookmarks, "valid_access_token", 1, 50, False)
+        mock_import_bookmarks.assert_called_once_with(
+            mock_bookmarks, "valid_access_token", 1, 50, False
+        )
 
     @patch("raindrop_api.api_import.validate_api_token")
     @patch("raindrop_api.api_import.test_api_connection")
-    def test_import_to_raindrop_connection_failure_with_api_token(self, mock_test_connection, mock_validate_token):
+    def test_import_to_raindrop_connection_failure_with_api_token(
+        self, mock_test_connection, mock_validate_token
+    ):
         """Test that import_to_raindrop handles API connection failures with API token authentication."""
         # Set up mocks
         mock_validate_token.return_value = "valid_token"
@@ -374,7 +395,7 @@ class TestRaindropApiImport:
             input_file="input.csv",
             collection_id=1,
             batch_size=50,
-            dry_run=False
+            dry_run=False,
         )
 
         # Import
@@ -390,7 +411,9 @@ class TestRaindropApiImport:
     @patch("raindrop_api.api_import.validate_client_credentials")
     @patch("raindrop_api.api_import.get_access_token")
     @patch("raindrop_api.api_import.test_api_connection")
-    def test_import_to_raindrop_connection_failure_with_oauth(self, mock_test_connection, mock_get_access_token, mock_validate_credentials):
+    def test_import_to_raindrop_connection_failure_with_oauth(
+        self, mock_test_connection, mock_get_access_token, mock_validate_credentials
+    ):
         """Test that import_to_raindrop handles API connection failures with OAuth authentication."""
         # Set up mocks
         mock_validate_credentials.return_value = ("valid_client_id", "valid_client_secret")
@@ -404,7 +427,7 @@ class TestRaindropApiImport:
             input_file="input.csv",
             collection_id=1,
             batch_size=50,
-            dry_run=False
+            dry_run=False,
         )
 
         # Import
@@ -420,7 +443,9 @@ class TestRaindropApiImport:
 
     @patch("raindrop_api.api_import.validate_client_credentials")
     @patch("raindrop_api.api_import.get_access_token")
-    def test_import_to_raindrop_oauth_failure(self, mock_get_access_token, mock_validate_credentials):
+    def test_import_to_raindrop_oauth_failure(
+        self, mock_get_access_token, mock_validate_credentials
+    ):
         """Test that import_to_raindrop handles OAuth authentication failures."""
         # Set up mocks
         mock_validate_credentials.return_value = ("valid_client_id", "valid_client_secret")
@@ -433,7 +458,7 @@ class TestRaindropApiImport:
             input_file="input.csv",
             collection_id=1,
             batch_size=50,
-            dry_run=False
+            dry_run=False,
         )
 
         # Import
@@ -443,14 +468,16 @@ class TestRaindropApiImport:
         mock_validate_credentials.assert_called_once_with("valid_client_id", "valid_client_secret")
         mock_get_access_token.assert_called_once_with("valid_client_id", "valid_client_secret")
 
-        # Check that the error was logged
-        self.mock_logger.error.assert_called_once()
+        # Check that the error was logged (OAuth failure + no-auth-available)
+        assert self.mock_logger.error.call_count == 2
 
     @patch("argparse.ArgumentParser.parse_args")
     @patch("raindrop_api.api_import.setup_logging")
     @patch("raindrop_api.api_import.get_logger")
     @patch("raindrop_api.api_import.import_to_raindrop")
-    def test_main_with_api_token(self, mock_import_to_raindrop, mock_get_logger, mock_setup_logging, mock_parse_args):
+    def test_main_with_api_token(
+        self, mock_import_to_raindrop, mock_get_logger, mock_setup_logging, mock_parse_args
+    ):
         """Test that main correctly sets up the environment and calls import_to_raindrop with API token authentication."""
         # Set up mocks
         mock_args = argparse.Namespace(
@@ -461,7 +488,7 @@ class TestRaindropApiImport:
             collection_id=1,
             batch_size=50,
             log_file="log.txt",
-            dry_run=False
+            dry_run=False,
         )
         mock_parse_args.return_value = mock_args
         mock_logger = MagicMock()
@@ -480,7 +507,9 @@ class TestRaindropApiImport:
     @patch("raindrop_api.api_import.setup_logging")
     @patch("raindrop_api.api_import.get_logger")
     @patch("raindrop_api.api_import.import_to_raindrop")
-    def test_main_with_oauth(self, mock_import_to_raindrop, mock_get_logger, mock_setup_logging, mock_parse_args):
+    def test_main_with_oauth(
+        self, mock_import_to_raindrop, mock_get_logger, mock_setup_logging, mock_parse_args
+    ):
         """Test that main correctly sets up the environment and calls import_to_raindrop with OAuth authentication."""
         # Set up mocks
         mock_args = argparse.Namespace(
@@ -491,7 +520,7 @@ class TestRaindropApiImport:
             collection_id=1,
             batch_size=50,
             log_file="log.txt",
-            dry_run=False
+            dry_run=False,
         )
         mock_parse_args.return_value = mock_args
         mock_logger = MagicMock()

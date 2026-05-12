@@ -122,7 +122,6 @@ class PocketConverter:
             self.logger.exception("Failed to parse HTML")
             raise
 
-
     def extract_bookmarks(
         self,
         soup: BeautifulSoup,
@@ -131,7 +130,7 @@ class PocketConverter:
         filter_date_to: Optional[str] = None,
         filter_title: Optional[str] = None,
         filter_url: Optional[str] = None,
-        chunk_size: int = 1000
+        chunk_size: int = 1000,
     ) -> list[dict[str, str]]:
         """
         Extract bookmarks from parsed HTML with optional filtering.
@@ -174,15 +173,19 @@ class PocketConverter:
             # Process bookmarks in chunks to optimize memory usage
             for chunk_start in range(0, total_bookmarks, chunk_size):
                 chunk_end = min(chunk_start + chunk_size, total_bookmarks)
-                self.logger.debug(f"Processing bookmarks {chunk_start+1} to {chunk_end} of {total_bookmarks}")
+                self.logger.debug(
+                    f"Processing bookmarks {chunk_start + 1} to {chunk_end} of {total_bookmarks}"
+                )
 
                 for i in range(chunk_start, chunk_end):
                     item = bookmarks[i]
                     try:
                         # Find the anchor tag within the list item
-                        anchor = item.find('a')
+                        anchor = item.find("a")
                         if not anchor:
-                            self.logger.warning(f"No anchor tag found in bookmark {i+1}, skipping")
+                            self.logger.warning(
+                                f"No anchor tag found in bookmark {i + 1}, skipping"
+                            )
                             progress_bar.update(1)
                             continue
 
@@ -194,14 +197,16 @@ class PocketConverter:
                             time_added: float = float(anchor.get("time_added"))
                             date_added: str = datetime.fromtimestamp(time_added).strftime("%x %X")
                         except (ValueError, TypeError):
-                            self.logger.warning(f"Failed to parse timestamp for bookmark {i+1}, using current time")
+                            self.logger.warning(
+                                f"Failed to parse timestamp for bookmark {i + 1}, using current time"
+                            )
                             date_added: str = datetime.now().strftime("%x %X")
 
                         row: Dict[str, str] = {
                             "title": title or "Untitled",  # Default to "Untitled" if None
                             "url": url or "",
                             "created": date_added,
-                            "tags": tags
+                            "tags": tags,
                         }
 
                         # Apply filters
@@ -209,8 +214,10 @@ class PocketConverter:
 
                         # Filter by tag
                         if filter_tag and should_include:
-                            filter_tags = [t.strip().lower() for t in filter_tag.split(',')]
-                            bookmark_tags = [t.strip().lower() for t in tags.split(',') if t.strip()]
+                            filter_tags = [t.strip().lower() for t in filter_tag.split(",")]
+                            bookmark_tags = [
+                                t.strip().lower() for t in tags.split(",") if t.strip()
+                            ]
                             # Check if any of the bookmark tags match any of the filter tags
                             if not any(tag in bookmark_tags for tag in filter_tags):
                                 should_include = False
@@ -224,7 +231,9 @@ class PocketConverter:
                                 if bookmark_date < from_date:
                                     should_include = False
                             except ValueError:
-                                self.logger.warning(f"Failed to parse date for date-from filter, including bookmark")
+                                self.logger.warning(
+                                    f"Failed to parse date for date-from filter, including bookmark"
+                                )
 
                         if filter_date_to and should_include:
                             try:
@@ -234,7 +243,9 @@ class PocketConverter:
                                 if bookmark_date > to_date:
                                     should_include = False
                             except ValueError:
-                                self.logger.warning(f"Failed to parse date for date-to filter, including bookmark")
+                                self.logger.warning(
+                                    f"Failed to parse date for date-to filter, including bookmark"
+                                )
 
                         # Filter by title
                         if filter_title and should_include:
@@ -252,15 +263,26 @@ class PocketConverter:
 
                         # Update progress bar
                         progress_bar.update(1)
-                        progress_bar.set_postfix({"current": (title or "Untitled")[:20] + "..." if len(title or "Untitled") > 20 else (title or "Untitled")})
+                        progress_bar.set_postfix(
+                            {
+                                "current": (title or "Untitled")[:20] + "..."
+                                if len(title or "Untitled") > 20
+                                else (title or "Untitled")
+                            }
+                        )
 
                     except Exception:
-                        self.logger.exception(f"Failed to process bookmark {i+1}")
-                        progress_bar.update(1)  # Still update progress bar even if bookmark processing fails
+                        self.logger.exception(f"Failed to process bookmark {i + 1}")
+                        progress_bar.update(
+                            1
+                        )  # Still update progress bar even if bookmark processing fails
                         # Continue with next bookmark
 
-                # Free up memory by clearing the soup's cache after each chunk
-                if hasattr(soup, 'clear_cache'):
+                # Free up memory by clearing the soup's cache after each chunk.
+                # BeautifulSoup forwards unknown attributes via __getattr__, so
+                # check that clear_cache is actually defined on the type before invoking it.
+                clear_cache = getattr(type(soup), "clear_cache", None)
+                if callable(clear_cache):
                     soup.clear_cache()
 
             # Close progress bar
@@ -273,13 +295,13 @@ class PocketConverter:
 
     def write_csv_file(
         self,
-        file_path: str, 
-        csv_rows: List[Dict[str, str]], 
-        field_mappings: Optional[Dict[str, str]] = None, 
+        file_path: str,
+        csv_rows: List[Dict[str, str]],
+        field_mappings: Optional[Dict[str, str]] = None,
         preview: bool = False,
         preview_limit: int = 10,
         dry_run: bool = False,
-        chunk_size: int = 1000
+        chunk_size: int = 1000,
     ) -> None:
         """
         Write CSV file with optional field mapping and preview.
@@ -324,7 +346,9 @@ class PocketConverter:
                 url_field="url",
                 tags_field="tags",
                 created_field="created",
-                description_field="description" if "description" in (mapped_rows[0] if mapped_rows else {}) else None
+                description_field="description"
+                if "description" in (mapped_rows[0] if mapped_rows else {})
+                else None,
             )
 
         if dry_run:
@@ -335,7 +359,7 @@ class PocketConverter:
                 # Just validate the field names, but don't create a writer
                 self.logger.info(f'Dry run: CSV validation successful for "{file_path}"')
                 if field_mappings:
-                    self.logger.info(f'Dry run: Field mappings applied: {field_mappings}')
+                    self.logger.info(f"Dry run: Field mappings applied: {field_mappings}")
             except Exception as e:
                 self.logger.exception(f"Dry run: CSV validation failed: {e}")
                 raise
@@ -353,7 +377,12 @@ class PocketConverter:
 
                 fieldnames = list(mapped_rows[0])
                 writer = csv.DictWriter(
-                    f, fieldnames=fieldnames, delimiter=",", lineterminator="\n", quotechar='"', quoting=csv.QUOTE_ALL
+                    f,
+                    fieldnames=fieldnames,
+                    delimiter=",",
+                    lineterminator="\n",
+                    quotechar='"',
+                    quoting=csv.QUOTE_ALL,
                 )
 
                 # Write header
@@ -365,7 +394,9 @@ class PocketConverter:
 
                 for chunk_start in range(0, total_rows, chunk_size):
                     chunk_end = min(chunk_start + chunk_size, total_rows)
-                    self.logger.debug(f"Writing rows {chunk_start+1} to {chunk_end} of {total_rows}")
+                    self.logger.debug(
+                        f"Writing rows {chunk_start + 1} to {chunk_end} of {total_rows}"
+                    )
 
                     # Get the current chunk of rows
                     chunk = mapped_rows[chunk_start:chunk_end]
@@ -375,7 +406,9 @@ class PocketConverter:
 
                     # Update progress bar
                     progress_bar.update(len(chunk))
-                    progress_bar.set_postfix({"chunk": f"{chunk_start+1}-{chunk_end}/{total_rows}"})
+                    progress_bar.set_postfix(
+                        {"chunk": f"{chunk_start + 1}-{chunk_end}/{total_rows}"}
+                    )
 
                     # Free up memory
                     del chunk
@@ -414,11 +447,11 @@ class PocketConverter:
         soup = self.parse_html_content(html_content)
 
         # Extract bookmarks with filtering
-        filter_tag = getattr(args, 'filter_tag', None)
-        filter_date_from = getattr(args, 'filter_date_from', None)
-        filter_date_to = getattr(args, 'filter_date_to', None)
-        filter_title = getattr(args, 'filter_title', None)
-        filter_url = getattr(args, 'filter_url', None)
+        filter_tag = getattr(args, "filter_tag", None)
+        filter_date_from = getattr(args, "filter_date_from", None)
+        filter_date_to = getattr(args, "filter_date_to", None)
+        filter_title = getattr(args, "filter_title", None)
+        filter_url = getattr(args, "filter_url", None)
 
         # Log filtering options if any are set
         if any([filter_tag, filter_date_from, filter_date_to, filter_title, filter_url]):
@@ -440,7 +473,7 @@ class PocketConverter:
             filter_date_from=filter_date_from,
             filter_date_to=filter_date_to,
             filter_title=filter_title,
-            filter_url=filter_url
+            filter_url=filter_url,
         )
 
         # Check if we have any bookmarks to write
@@ -449,13 +482,13 @@ class PocketConverter:
             return
 
         # Check if dry-run mode is enabled
-        dry_run = getattr(args, 'dry_run', False)
+        dry_run = getattr(args, "dry_run", False)
         if dry_run:
             self.logger.info("Dry run mode enabled: validating without writing files")
 
         # Check if preview mode is enabled
-        preview = getattr(args, 'preview', False)
-        preview_limit = getattr(args, 'preview_limit', 10)
+        preview = getattr(args, "preview", False)
+        preview_limit = getattr(args, "preview_limit", 10)
         if preview:
             self.logger.info(f"Preview mode enabled: showing up to {preview_limit} items")
 
@@ -468,7 +501,7 @@ class PocketConverter:
             "url": "url",
             "tags": "tags",
             "created": "created",
-            "description": "description"
+            "description": "description",
         }:
             self.logger.info("Using custom field mappings:")
             for source, target in field_mappings.items():
@@ -477,12 +510,12 @@ class PocketConverter:
 
         # Write output file
         self.write_csv_file(
-            args.output_file, 
-            csv_rows, 
-            field_mappings, 
+            args.output_file,
+            csv_rows,
+            field_mappings,
             preview=preview,
             preview_limit=preview_limit,
-            dry_run=dry_run
+            dry_run=dry_run,
         )
 
         if dry_run:

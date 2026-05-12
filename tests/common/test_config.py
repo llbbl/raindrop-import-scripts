@@ -1,9 +1,17 @@
-import os
-import pytest
-import tempfile
 import argparse
+import os
+import tempfile
+
+import pytest
 import yaml
-from common.config import get_config_file_path, load_config, apply_config_to_args
+
+from common.config import apply_config_to_args, get_config_file_path, load_config
+
+
+@pytest.fixture(autouse=True)
+def _isolate_env(monkeypatch):
+    """Prevent .env / RAINDROP_* env vars from polluting load_config tests."""
+    monkeypatch.setattr("common.config.load_env_vars", lambda: {})
 
 
 class TestConfig:
@@ -28,6 +36,7 @@ class TestConfig:
 
     def test_get_config_file_path_home_dir(self, monkeypatch):
         """Test that get_config_file_path finds a config file in the home directory."""
+
         # Mock os.path.exists to return True for ~/.raindrop_import.yaml and False for ./raindrop_import.yaml
         def mock_exists(path):
             return path == os.path.expanduser("~/.raindrop_import.yaml")
@@ -48,14 +57,7 @@ class TestConfig:
     def test_load_config_with_file(self):
         """Test that load_config correctly loads a config file."""
         # Create a temporary config file
-        config_data = {
-            "global": {
-                "log_file": "global.log"
-            },
-            "evernote": {
-                "use_markdown": True
-            }
-        }
+        config_data = {"global": {"log_file": "global.log"}, "evernote": {"use_markdown": True}}
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml") as temp_file:
             yaml.dump(config_data, temp_file)
@@ -97,14 +99,11 @@ class TestConfig:
         """Test that apply_config_to_args correctly applies config settings to args."""
         # Create a config dict
         config = {
-            "global": {
-                "log_file": "global.log",
-                "dry_run": True
-            },
+            "global": {"log_file": "global.log", "dry_run": True},
             "evernote": {
                 "use_markdown": True,
-                "log_file": "evernote.log"  # This should override the global setting
-            }
+                "log_file": "evernote.log",  # This should override the global setting
+            },
         }
 
         # Create args
@@ -113,7 +112,7 @@ class TestConfig:
             input_file="input.enex",
             output_file="output.csv",
             log_file=None,  # This should be filled from config
-            use_markdown=None  # This should be filled from config
+            use_markdown=None,  # This should be filled from config
         )
 
         # Apply config to args
@@ -130,14 +129,7 @@ class TestConfig:
     def test_apply_config_to_args_no_override(self):
         """Test that apply_config_to_args doesn't override explicitly provided args."""
         # Create a config dict
-        config = {
-            "global": {
-                "log_file": "global.log"
-            },
-            "evernote": {
-                "use_markdown": True
-            }
-        }
+        config = {"global": {"log_file": "global.log"}, "evernote": {"use_markdown": True}}
 
         # Create args with explicitly provided values
         args = argparse.Namespace(
@@ -145,7 +137,7 @@ class TestConfig:
             input_file="input.enex",
             output_file="output.csv",
             log_file="explicit.log",  # This should not be overridden
-            use_markdown=False  # This should not be overridden
+            use_markdown=False,  # This should not be overridden
         )
 
         # Apply config to args

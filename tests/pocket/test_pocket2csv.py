@@ -1,12 +1,9 @@
-import os
-import sys
-import pytest
 import argparse
-import tempfile
-import datetime
-from unittest.mock import patch, MagicMock, mock_open
-from bs4 import BeautifulSoup
-from pocket.pocket2csv import main, PocketConverter
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
+
+from pocket.pocket2csv import PocketConverter, main
 
 
 class TestPocket2Csv:
@@ -20,6 +17,7 @@ class TestPocket2Csv:
 
         # Initialize the global logger variable
         import pocket.pocket2csv
+
         pocket.pocket2csv.logger = self.mock_logger
 
         # Create a PocketConverter instance
@@ -39,10 +37,9 @@ class TestPocket2Csv:
         mock_parser.parse_args.return_value = mock_args
 
         # Test with valid arguments
-        args = self.converter.parse_command_line_args([
-            "--input-file", "input.html",
-            "--output-file", "output.csv"
-        ])
+        args = self.converter.parse_command_line_args(
+            ["--input-file", "input.html", "--output-file", "output.csv"]
+        )
 
         # Check that the returned args are correct
         assert args.input_file == "input.html"
@@ -55,7 +52,7 @@ class TestPocket2Csv:
         mock_file.assert_called_once_with("input.html", "r")
         assert content == "test content"
 
-    @patch("builtins.open", side_effect=IOError("File not found"))
+    @patch("builtins.open", side_effect=OSError("File not found"))
     def test_read_html_file_error(self, mock_file):
         """Test that read_html_file handles errors correctly."""
         with pytest.raises(IOError):
@@ -63,7 +60,7 @@ class TestPocket2Csv:
 
     def test_parse_html_content(self):
         """Test that parse_html_content correctly parses HTML content."""
-        with patch("bs4.BeautifulSoup") as mock_bs:
+        with patch("pocket.pocket2csv.BeautifulSoup") as mock_bs:
             mock_soup = MagicMock()
             mock_bs.return_value = mock_soup
 
@@ -86,7 +83,7 @@ class TestPocket2Csv:
             anchor1.get.side_effect = lambda attr: {
                 "href": "http://example.com",
                 "time_added": "1577836800",
-                "tags": "tag1,tag2"
+                "tags": "tag1,tag2",
             }.get(attr)
             anchor1.string = "Example 1"
 
@@ -94,7 +91,7 @@ class TestPocket2Csv:
             anchor2.get.side_effect = lambda attr: {
                 "href": "http://example.org",
                 "time_added": "1580515200",
-                "tags": None
+                "tags": None,
             }.get(attr)
             anchor2.string = "Example 2"
 
@@ -136,7 +133,7 @@ class TestPocket2Csv:
             anchor.get.side_effect = lambda attr: {
                 "href": "http://example.com",
                 "time_added": "invalid",  # This will cause a ValueError when converted to float
-                "tags": None
+                "tags": None,
             }.get(attr)
             anchor.string = "Example 1"
 
@@ -167,7 +164,7 @@ class TestPocket2Csv:
         # Create records
         records = [
             {"title": "Example 1", "url": "http://example.com", "tags": "tag1,tag2"},
-            {"title": "Example 2", "url": "http://example.org", "tags": ""}
+            {"title": "Example 2", "url": "http://example.org", "tags": ""},
         ]
 
         # Write records
@@ -189,7 +186,7 @@ class TestPocket2Csv:
         # Create records
         records = [
             {"title": "Example 1", "url": "http://example.com", "tags": "tag1,tag2"},
-            {"title": "Example 2", "url": "http://example.org", "tags": ""}
+            {"title": "Example 2", "url": "http://example.org", "tags": ""},
         ]
 
         # Write records in dry-run mode
@@ -201,7 +198,9 @@ class TestPocket2Csv:
     @patch("pocket.pocket2csv.PocketConverter.parse_html_content")
     @patch("pocket.pocket2csv.PocketConverter.extract_bookmarks")
     @patch("pocket.pocket2csv.PocketConverter.write_csv_file")
-    def test_convert_html(self, mock_write_csv, mock_extract_bookmarks, mock_parse_html, mock_read_file):
+    def test_convert_html(
+        self, mock_write_csv, mock_extract_bookmarks, mock_parse_html, mock_read_file
+    ):
         """Test that convert_html correctly orchestrates the conversion process."""
         # Set up mocks
         mock_read_file.return_value = "html content"
@@ -211,11 +210,7 @@ class TestPocket2Csv:
         mock_extract_bookmarks.return_value = mock_bookmarks
 
         # Create args
-        args = argparse.Namespace(
-            input_file="input.html",
-            output_file="output.csv",
-            dry_run=False
-        )
+        args = argparse.Namespace(input_file="input.html", output_file="output.csv", dry_run=False)
 
         # Convert
         self.converter.convert_html(args)
@@ -224,12 +219,12 @@ class TestPocket2Csv:
         mock_read_file.assert_called_once_with("input.html")
         mock_parse_html.assert_called_once_with("html content")
         mock_extract_bookmarks.assert_called_once_with(
-            mock_soup, 
-            filter_tag=None, 
-            filter_date_from=None, 
-            filter_date_to=None, 
-            filter_title=None, 
-            filter_url=None
+            mock_soup,
+            filter_tag=None,
+            filter_date_from=None,
+            filter_date_to=None,
+            filter_title=None,
+            filter_url=None,
         )
         mock_write_csv.assert_called_once()
 
@@ -237,7 +232,9 @@ class TestPocket2Csv:
     @patch("pocket.pocket2csv.PocketConverter.parse_html_content")
     @patch("pocket.pocket2csv.PocketConverter.extract_bookmarks")
     @patch("pocket.pocket2csv.PocketConverter.write_csv_file")
-    def test_convert_html_no_bookmarks(self, mock_write_csv, mock_extract_bookmarks, mock_parse_html, mock_read_file):
+    def test_convert_html_no_bookmarks(
+        self, mock_write_csv, mock_extract_bookmarks, mock_parse_html, mock_read_file
+    ):
         """Test that convert_html handles the case where no bookmarks are found."""
         # Set up mocks
         mock_read_file.return_value = "html content"
@@ -246,11 +243,7 @@ class TestPocket2Csv:
         mock_extract_bookmarks.return_value = []
 
         # Create args
-        args = argparse.Namespace(
-            input_file="input.html",
-            output_file="output.csv",
-            dry_run=False
-        )
+        args = argparse.Namespace(input_file="input.html", output_file="output.csv", dry_run=False)
 
         # Convert
         self.converter.convert_html(args)
@@ -274,4 +267,3 @@ class TestPocket2Csv:
         mock_setup_logging.assert_called_once()
         mock_get_logger.assert_called_once()
         mock_run.assert_called_once()
-
