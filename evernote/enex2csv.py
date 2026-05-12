@@ -138,14 +138,16 @@ class EvernoteConverter:
         self.logger.info("Parsing ENEX content")
         try:
             xml_parser = etree.XMLParser(huge_tree=True, resolve_entities=False)
-            xml_tree = etree.fromstring(enex_content.encode('utf-8'), xml_parser)
+            xml_tree = etree.fromstring(enex_content.encode("utf-8"), xml_parser)
             return etree.ElementTree(xml_tree)
         except Exception:
             self.logger.exception("Failed to parse ENEX")
             raise
 
     @staticmethod
-    def xpath_first_or_default(node: etree._Element, query: str, default: object, formatter: Callable[[str], object] = None) -> object:
+    def xpath_first_or_default(
+        node: etree._Element, query: str, default: object, formatter: Callable[[str], object] = None
+    ) -> object:
         """
         Select the first results from an XPath query or fall back to a default value.
 
@@ -194,8 +196,7 @@ class EvernoteConverter:
         converter.mark_code = True
         return converter.handle(html)
 
-    @staticmethod
-    def parse_xml_date(date_str: str) -> datetime.datetime:
+    def parse_xml_date(self, date_str: str) -> datetime.datetime:
         """
         Parse an ISO datetime value from ENEX.
 
@@ -207,7 +208,8 @@ class EvernoteConverter:
         Returns
         -------
         datetime.datetime
-            Parsed datetime value.
+            Parsed datetime value. Falls back to ``datetime.utcnow()`` if the
+            input cannot be parsed; a warning is logged in that case.
         """
         try:
             date = isoparse(date_str)
@@ -217,7 +219,9 @@ class EvernoteConverter:
                 date = date.replace(year=now.year)
             return date
         except Exception:
-            # If parsing fails, return current time
+            self.logger.warning(
+                f"Failed to parse ENEX datetime value {date_str!r}; substituting current UTC time"
+            )
             return datetime.datetime.utcnow()
 
     def extract_note_records(
@@ -228,7 +232,7 @@ class EvernoteConverter:
         filter_date_from: Optional[str] = None,
         filter_date_to: Optional[str] = None,
         filter_title: Optional[str] = None,
-        filter_url: Optional[str] = None
+        filter_url: Optional[str] = None,
     ) -> List[Dict]:
         """
         Extract note records from the XML tree.
@@ -281,8 +285,14 @@ class EvernoteConverter:
 
             # Extract note attributes
             note_attrs = note.xpath("note-attributes")[0] if note.xpath("note-attributes") else None
-            source_url = self.xpath_first_or_default(note_attrs, "source-url", "") if note_attrs else ""
-            reminder_time = self.xpath_first_or_default(note_attrs, "reminder-time", "", self.parse_xml_date) if note_attrs else None
+            source_url = (
+                self.xpath_first_or_default(note_attrs, "source-url", "") if note_attrs else ""
+            )
+            reminder_time = (
+                self.xpath_first_or_default(note_attrs, "reminder-time", "", self.parse_xml_date)
+                if note_attrs
+                else None
+            )
 
             # Apply filters
             if filter_tag and filter_tag not in tags:
@@ -308,7 +318,7 @@ class EvernoteConverter:
                 "tags": tags_str,
                 "created": created.isoformat() if created else "",
                 "updated": updated.isoformat() if updated else "",
-                "reminder": reminder_time.isoformat() if reminder_time else ""
+                "reminder": reminder_time.isoformat() if reminder_time else "",
             }
 
             note_records.append(note_record)
@@ -322,7 +332,7 @@ class EvernoteConverter:
         field_mappings: Optional[Dict[str, str]] = None,
         preview: bool = False,
         preview_limit: int = 10,
-        dry_run: bool = False
+        dry_run: bool = False,
     ) -> None:
         """
         Write note records to a CSV file.
@@ -350,19 +360,28 @@ class EvernoteConverter:
             self.logger.warning("No notes to write")
             return
 
+        # Apply field mappings BEFORE preview so users see mapped field names
+        if field_mappings:
+            note_records = map_rows(note_records, field_mappings)
+
         if preview:
-            preview_items(note_records, preview_limit)
-            if dry_run:
-                return
+            self.logger.info("Previewing items that will be imported:")
+            preview_items(
+                note_records,
+                limit=preview_limit,
+                title_field="title",
+                url_field="url",
+                tags_field="tags",
+                created_field="created",
+                description_field="description"
+                if "description" in (note_records[0] if note_records else {})
+                else None,
+            )
 
         if dry_run:
             return
 
         self.logger.info(f'Writing {len(note_records)} notes to "{csv_filename}"')
-
-        # Apply field mappings if provided
-        if field_mappings:
-            note_records = map_rows(note_records, field_mappings)
 
         # Write records to CSV
         try:
@@ -397,11 +416,11 @@ class EvernoteConverter:
         xml_tree = self.parse_enex(enex_content)
 
         # Get filtering options
-        filter_tag = getattr(args, 'filter_tag', None)
-        filter_date_from = getattr(args, 'filter_date_from', None)
-        filter_date_to = getattr(args, 'filter_date_to', None)
-        filter_title = getattr(args, 'filter_title', None)
-        filter_url = getattr(args, 'filter_url', None)
+        filter_tag = getattr(args, "filter_tag", None)
+        filter_date_from = getattr(args, "filter_date_from", None)
+        filter_date_to = getattr(args, "filter_date_to", None)
+        filter_title = getattr(args, "filter_title", None)
+        filter_url = getattr(args, "filter_url", None)
 
         # Log filtering options if any are set
         if any([filter_tag, filter_date_from, filter_date_to, filter_title, filter_url]):
@@ -425,7 +444,7 @@ class EvernoteConverter:
             filter_date_from=filter_date_from,
             filter_date_to=filter_date_to,
             filter_title=filter_title,
-            filter_url=filter_url
+            filter_url=filter_url,
         )
 
         if len(note_records) <= 0:
@@ -433,13 +452,13 @@ class EvernoteConverter:
             return
 
         # Check if dry-run mode is enabled
-        dry_run = getattr(args, 'dry_run', False)
+        dry_run = getattr(args, "dry_run", False)
         if dry_run:
             self.logger.info("Dry run mode enabled: validating without writing files")
 
         # Check if preview mode is enabled
-        preview = getattr(args, 'preview', False)
-        preview_limit = getattr(args, 'preview_limit', 10)
+        preview = getattr(args, "preview", False)
+        preview_limit = getattr(args, "preview_limit", 10)
         if preview:
             self.logger.info(f"Preview mode enabled: showing up to {preview_limit} items")
 
@@ -452,7 +471,7 @@ class EvernoteConverter:
             "url": "url",
             "tags": "tags",
             "created": "created",
-            "description": "description"
+            "description": "description",
         }:
             self.logger.info("Using custom field mappings:")
             for source, target in field_mappings.items():
@@ -466,7 +485,7 @@ class EvernoteConverter:
             field_mappings,
             preview=preview,
             preview_limit=preview_limit,
-            dry_run=dry_run
+            dry_run=dry_run,
         )
 
     @staticmethod

@@ -46,7 +46,7 @@ class TestFirefoxBookmarkConverter:
             "type": "bookmark",
             "title": "Example",
             "uri": "http://example.com",
-            "dateAdded": "1577836800000000"  # Firefox timestamp (microseconds since Jan 1, 1970)
+            "dateAdded": "1577836800000000",  # Firefox timestamp (microseconds since Jan 1, 1970)
         }
 
         # Process the node
@@ -70,15 +70,15 @@ class TestFirefoxBookmarkConverter:
                     "type": "bookmark",
                     "title": "Example 1",
                     "uri": "http://example1.com",
-                    "dateAdded": "1577836800000000"
+                    "dateAdded": "1577836800000000",
                 },
                 {
                     "type": "bookmark",
                     "title": "Example 2",
                     "uri": "http://example2.com",
-                    "dateAdded": "1577836800000000"
-                }
-            ]
+                    "dateAdded": "1577836800000000",
+                },
+            ],
         }
 
         # Process the node
@@ -106,9 +106,9 @@ class TestFirefoxBookmarkConverter:
                             "type": "bookmark",
                             "title": "Example 1",
                             "uri": "http://example1.com",
-                            "dateAdded": "1577836800000000"
+                            "dateAdded": "1577836800000000",
                         }
-                    ]
+                    ],
                 },
                 {
                     "type": "folder",
@@ -118,10 +118,10 @@ class TestFirefoxBookmarkConverter:
                             "type": "bookmark",
                             "title": "Example 2",
                             "uri": "http://example2.com",
-                            "dateAdded": "1577836800000000"
+                            "dateAdded": "1577836800000000",
                         }
-                    ]
-                }
+                    ],
+                },
             ]
         }
 
@@ -148,8 +148,18 @@ class TestFirefoxBookmarkConverter:
 
         # Create records
         records = [
-            {"title": "Example 1", "url": "http://example1.com", "created": "01/01/2020 00:00:00", "tags": "Folder1,Folder2"},
-            {"title": "Example 2", "url": "http://example2.com", "created": "01/01/2020 00:00:00", "tags": "Folder3"}
+            {
+                "title": "Example 1",
+                "url": "http://example1.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder1,Folder2",
+            },
+            {
+                "title": "Example 2",
+                "url": "http://example2.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder3",
+            },
         ]
 
         # Write records
@@ -170,8 +180,18 @@ class TestFirefoxBookmarkConverter:
         """Test that write_csv_file in dry-run mode doesn't write to a file."""
         # Create records
         records = [
-            {"title": "Example 1", "url": "http://example1.com", "created": "01/01/2020 00:00:00", "tags": "Folder1,Folder2"},
-            {"title": "Example 2", "url": "http://example2.com", "created": "01/01/2020 00:00:00", "tags": "Folder3"}
+            {
+                "title": "Example 1",
+                "url": "http://example1.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder1,Folder2",
+            },
+            {
+                "title": "Example 2",
+                "url": "http://example2.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder3",
+            },
         ]
 
         # Write records in dry-run mode
@@ -185,7 +205,15 @@ class TestFirefoxBookmarkConverter:
     @patch("firefox.firefox2csv.FirefoxBookmarkConverter.read_json_file")
     @patch("firefox.firefox2csv.FirefoxBookmarkConverter.extract_bookmarks")
     @patch("firefox.firefox2csv.FirefoxBookmarkConverter.write_csv_file")
-    def test_convert(self, mock_write_csv, mock_extract_bookmarks, mock_read_file, mock_exists, mock_isfile, mock_access):
+    def test_convert(
+        self,
+        mock_write_csv,
+        mock_extract_bookmarks,
+        mock_read_file,
+        mock_exists,
+        mock_isfile,
+        mock_access,
+    ):
         """Test that convert correctly orchestrates the conversion process."""
         # Set up mocks
         mock_read_file.return_value = {"children": []}
@@ -206,7 +234,15 @@ class TestFirefoxBookmarkConverter:
     @patch("firefox.firefox2csv.FirefoxBookmarkConverter.read_json_file")
     @patch("firefox.firefox2csv.FirefoxBookmarkConverter.extract_bookmarks")
     @patch("firefox.firefox2csv.FirefoxBookmarkConverter.write_csv_file")
-    def test_convert_no_bookmarks(self, mock_write_csv, mock_extract_bookmarks, mock_read_file, mock_exists, mock_isfile, mock_access):
+    def test_convert_no_bookmarks(
+        self,
+        mock_write_csv,
+        mock_extract_bookmarks,
+        mock_read_file,
+        mock_exists,
+        mock_isfile,
+        mock_access,
+    ):
         """Test that convert handles the case where no bookmarks are found."""
         # Set up mocks
         mock_read_file.return_value = {"children": []}
@@ -232,42 +268,122 @@ class TestCommandLine:
         mock_parser.parse_args.return_value = mock_args
 
         # Test with valid arguments
-        args = parse_command_line_args([
-            "--input-file", "input.json",
-            "--output-file", "output.csv"
-        ])
+        args = parse_command_line_args(
+            ["--input-file", "input.json", "--output-file", "output.csv"]
+        )
 
         # Check that the returned args are correct
         assert args.input_file == "input.json"
         assert args.output_file == "output.csv"
 
+    @patch("firefox.firefox2csv.apply_field_mappings")
     @patch("firefox.firefox2csv.FirefoxBookmarkConverter")
     @patch("firefox.firefox2csv.parse_command_line_args")
     @patch("firefox.firefox2csv.setup_logging")
     @patch("firefox.firefox2csv.get_logger")
-    def test_main(self, mock_get_logger, mock_setup_logging, mock_parse_args, mock_converter_class):
+    def test_main(
+        self,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_parse_args,
+        mock_converter_class,
+        mock_apply_field_mappings,
+    ):
         """Test that main correctly sets up and runs the converter."""
-        # Set up mocks
         mock_args = argparse.Namespace(
             input_file="input.json",
             output_file="output.csv",
-            field_mappings=None,
             preview=False,
             preview_limit=10,
-            dry_run=False
+            dry_run=False,
+            log_file=None,
         )
         mock_parse_args.return_value = mock_args
+        mock_apply_field_mappings.return_value = {"title": "title"}
         mock_converter = MagicMock()
         mock_converter_class.return_value = mock_converter
 
-        # Run main
         main()
 
-        # Check that the converter was created and run correctly
-        mock_converter_class.assert_called_once_with("input.json", "output.csv", mock_get_logger.return_value)
+        mock_setup_logging.assert_called_once_with(None)
+        mock_apply_field_mappings.assert_called_once_with(mock_args)
+        mock_converter_class.assert_called_once_with(
+            "input.json", "output.csv", mock_get_logger.return_value
+        )
         mock_converter.convert.assert_called_once_with(
-            field_mappings=None,
+            field_mappings={"title": "title"},
             preview=False,
             preview_limit=10,
-            dry_run=False
+            dry_run=False,
         )
+
+    @patch("firefox.firefox2csv.apply_field_mappings")
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter")
+    @patch("firefox.firefox2csv.setup_logging")
+    @patch("firefox.firefox2csv.get_logger")
+    def test_main_uses_real_parse_command_line_args(
+        self,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_converter_class,
+        mock_apply_field_mappings,
+    ):
+        """End-to-end: main must work with the real argparse-produced namespace.
+
+        Regression: previously main() referenced ``args.field_mappings`` which
+        does not exist on the argparse namespace, causing AttributeError on
+        every CLI invocation. This test exercises the real parser.
+        """
+        mock_apply_field_mappings.return_value = {}
+        mock_converter = MagicMock()
+        mock_converter_class.return_value = mock_converter
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as input_f:
+            input_f.write('{"children": []}')
+            input_path = input_f.name
+        output_path = input_path + ".csv"
+
+        try:
+            with patch.object(
+                sys,
+                "argv",
+                ["firefox2csv.py", "--input-file", input_path, "--output-file", output_path],
+            ):
+                main()
+        finally:
+            os.unlink(input_path)
+            if os.path.exists(output_path):
+                os.unlink(output_path)
+
+        mock_converter_class.assert_called_once_with(
+            input_path, output_path, mock_get_logger.return_value
+        )
+        # Defensive arg access: missing attrs default cleanly
+        kwargs = mock_converter.convert.call_args.kwargs
+        assert kwargs["preview"] is False
+        assert kwargs["preview_limit"] == 10
+        assert kwargs["dry_run"] is False
+
+    @patch("firefox.firefox2csv.apply_field_mappings")
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter")
+    @patch("firefox.firefox2csv.parse_command_line_args")
+    @patch("firefox.firefox2csv.setup_logging")
+    @patch("firefox.firefox2csv.get_logger")
+    def test_main_forwards_log_file(
+        self,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_parse_args,
+        mock_converter_class,
+        mock_apply_field_mappings,
+    ):
+        """The --log-file argument must be forwarded to setup_logging."""
+        mock_parse_args.return_value = argparse.Namespace(
+            input_file="input.json",
+            output_file="output.csv",
+            log_file="/tmp/firefox.log",
+        )
+        mock_apply_field_mappings.return_value = {}
+        mock_converter_class.return_value = MagicMock()
+        main()
+        mock_setup_logging.assert_called_once_with("/tmp/firefox.log")

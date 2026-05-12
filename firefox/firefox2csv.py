@@ -52,7 +52,7 @@ class FirefoxBookmarkConverter:
         """
         self.input_file = input_file
         self.output_file = output_file
-        self.logger = logger or get_logger(__name__)
+        self.logger = logger or get_logger()
 
     def read_json_file(self) -> Dict[str, Any]:
         """
@@ -84,7 +84,9 @@ class FirefoxBookmarkConverter:
             self.logger.exception("Unexpected error while reading input file")
             raise
 
-    def process_bookmark_node(self, node: Dict[str, Any], path: List[str] = None) -> List[Dict[str, str]]:
+    def process_bookmark_node(
+        self, node: Dict[str, Any], path: List[str] = None
+    ) -> List[Dict[str, str]]:
         """
         Process a bookmark node recursively.
 
@@ -115,7 +117,9 @@ class FirefoxBookmarkConverter:
                 else:
                     date_added = datetime.now().strftime("%x %X")
             except (ValueError, TypeError):
-                self.logger.warning(f"Failed to parse timestamp for bookmark {node.get('title', 'Unknown')}, using current time")
+                self.logger.warning(
+                    f"Failed to parse timestamp for bookmark {node.get('title', 'Unknown')}, using current time"
+                )
                 date_added = datetime.now().strftime("%x %X")
 
             # Create bookmark entry
@@ -123,7 +127,7 @@ class FirefoxBookmarkConverter:
                 "title": node.get("title", "Untitled"),
                 "url": node.get("uri", ""),
                 "created": date_added,
-                "tags": ",".join(path) if path else ""
+                "tags": ",".join(path) if path else "",
             }
             results.append(bookmark)
 
@@ -189,7 +193,7 @@ class FirefoxBookmarkConverter:
         field_mappings: Optional[Dict[str, str]] = None,
         preview: bool = False,
         preview_limit: int = 10,
-        dry_run: bool = False
+        dry_run: bool = False,
     ) -> None:
         """
         Write CSV file with optional field mapping and preview.
@@ -228,20 +232,24 @@ class FirefoxBookmarkConverter:
                 url_field="url",
                 tags_field="tags",
                 created_field="created",
-                description_field="description" if "description" in (mapped_rows[0] if mapped_rows else {}) else None
+                description_field="description"
+                if "description" in (mapped_rows[0] if mapped_rows else {})
+                else None,
             )
 
         if dry_run:
-            self.logger.info(f'Dry run: would write {len(mapped_rows)} rows to "{self.output_file}"')
+            self.logger.info(
+                f'Dry run: would write {len(mapped_rows)} rows to "{self.output_file}"'
+            )
             # Validate that we can create a CSV writer with the rows
             try:
                 fieldnames = list(mapped_rows[0])
                 # Just validate the field names, but don't create a writer
                 self.logger.info(f'Dry run: CSV validation successful for "{self.output_file}"')
                 if field_mappings:
-                    self.logger.info(f'Dry run: Field mappings applied: {field_mappings}')
+                    self.logger.info(f"Dry run: Field mappings applied: {field_mappings}")
             except Exception as e:
-                self.logger.error(f'Dry run: CSV validation failed: {str(e)}')
+                self.logger.error(f"Dry run: CSV validation failed: {str(e)}")
                 raise
             return
 
@@ -264,8 +272,13 @@ class FirefoxBookmarkConverter:
             self.logger.exception(f"Failed to write CSV file: {self.output_file}")
             raise
 
-    def convert(self, field_mappings: Optional[Dict[str, str]] = None, preview: bool = False,
-                preview_limit: int = 10, dry_run: bool = False) -> None:
+    def convert(
+        self,
+        field_mappings: Optional[Dict[str, str]] = None,
+        preview: bool = False,
+        preview_limit: int = 10,
+        dry_run: bool = False,
+    ) -> None:
         """
         Convert Firefox bookmarks from JSON to CSV format.
 
@@ -312,30 +325,32 @@ def parse_command_line_args(args: list[str]) -> argparse.Namespace:
 
     # Update the metavar for input-file to be more specific
     parser._option_string_actions["--input-file"].metavar = "JSONFILE"
-    parser._option_string_actions["--input-file"].help = "Input JSON file path (exported from Firefox bookmarks)"
+    parser._option_string_actions[
+        "--input-file"
+    ].help = "Input JSON file path (exported from Firefox bookmarks)"
 
     return parse_args(parser, args)
 
 
 def main() -> None:
     """Main entry point for the script."""
+    # Parse command line arguments first so --log-file is available
+    args = parse_command_line_args(sys.argv[1:])
+
     # Setup logging
-    setup_logging()
-    logger = get_logger(__name__)
+    setup_logging(getattr(args, "log_file", None))
+    logger = get_logger()
 
     try:
-        # Parse command line arguments
-        args = parse_command_line_args(sys.argv[1:])
-
         # Create converter instance
         converter = FirefoxBookmarkConverter(args.input_file, args.output_file, logger)
 
         # Convert the bookmarks
         converter.convert(
-            field_mappings=args.field_mappings,
-            preview=args.preview,
-            preview_limit=args.preview_limit,
-            dry_run=args.dry_run
+            field_mappings=apply_field_mappings(args),
+            preview=getattr(args, "preview", False),
+            preview_limit=getattr(args, "preview_limit", 10),
+            dry_run=getattr(args, "dry_run", False),
         )
 
     except Exception as e:

@@ -29,15 +29,15 @@ class TestEvernoteConverter:
         # Set up mocks
         mock_parser = MagicMock()
         mock_arg_parser.return_value = mock_parser
-        mock_args = argparse.Namespace(input_file="input.enex", output_file="output.csv", use_markdown=True)
+        mock_args = argparse.Namespace(
+            input_file="input.enex", output_file="output.csv", use_markdown=True
+        )
         mock_parser.parse_args.return_value = mock_args
 
         # Test with valid arguments
-        args = EvernoteConverter.parse_command_line_args([
-            "--input-file", "input.enex",
-            "--output-file", "output.csv",
-            "--use-markdown"
-        ])
+        args = EvernoteConverter.parse_command_line_args(
+            ["--input-file", "input.enex", "--output-file", "output.csv", "--use-markdown"]
+        )
 
         # Check that the returned args are correct
         assert args.input_file == "input.enex"
@@ -164,7 +164,9 @@ class TestEvernoteConverter:
         assert records[1]["tags"] == ""
 
         # Extract notes with Markdown conversion
-        with patch("evernote.enex2csv.EvernoteConverter.html_to_markdown", return_value="Markdown content"):
+        with patch(
+            "evernote.enex2csv.EvernoteConverter.html_to_markdown", return_value="Markdown content"
+        ):
             records = self.converter.extract_note_records(tree, True)
             assert len(records) == 2
             assert records[0]["description"] == "Markdown content"
@@ -181,7 +183,7 @@ class TestEvernoteConverter:
         # Create records
         records = [
             {"title": "Note 1", "description": "Content 1"},
-            {"title": "Note 2", "description": "Content 2"}
+            {"title": "Note 2", "description": "Content 2"},
         ]
 
         # Write records
@@ -205,7 +207,7 @@ class TestEvernoteConverter:
         # Create records
         records = [
             {"title": "Note 1", "description": "Content 1"},
-            {"title": "Note 2", "description": "Content 2"}
+            {"title": "Note 2", "description": "Content 2"},
         ]
 
         # Write records with dry run
@@ -217,9 +219,75 @@ class TestEvernoteConverter:
         # Check that the writer was not created
         mock_dict_writer.assert_not_called()
 
+    def test_write_csv_applies_field_mappings_before_preview(self):
+        """Regression: map_rows must run before preview_items so users see mapped names.
+
+        Also verifies preview_items receives the descriptive field kwargs (not just
+        positional ``(items, limit)``), so the description preview is not silently
+        dropped.
+        """
+        records = [
+            {
+                "title": "Note 1",
+                "url": "http://example.com",
+                "tags": "t1",
+                "created": "2020-01-01",
+                "description": "Content 1",
+            }
+        ]
+        field_mappings = {"title": "renamed_title"}
+        mapped_return = [
+            {
+                "renamed_title": "Note 1",
+                "url": "http://example.com",
+                "tags": "t1",
+                "created": "2020-01-01",
+                "description": "Content 1",
+            }
+        ]
+
+        with (
+            patch("evernote.enex2csv.map_rows") as mock_map_rows,
+            patch("evernote.enex2csv.preview_items") as mock_preview,
+        ):
+            # Order matters: assert map_rows is called before preview_items
+            call_order = []
+
+            def record_map(*args, **kwargs):
+                call_order.append("map_rows")
+                return mapped_return
+
+            def record_preview(*args, **kwargs):
+                call_order.append("preview_items")
+
+            mock_map_rows.side_effect = record_map
+            mock_preview.side_effect = record_preview
+
+            self.converter.write_csv(
+                "output.csv",
+                records,
+                field_mappings=field_mappings,
+                preview=True,
+                preview_limit=5,
+                dry_run=True,
+            )
+
+            assert call_order == ["map_rows", "preview_items"]
+            # preview_items must receive the descriptive kwargs, not just (items, limit)
+            kwargs = mock_preview.call_args.kwargs
+            assert kwargs["limit"] == 5
+            assert kwargs["title_field"] == "title"
+            assert kwargs["url_field"] == "url"
+            assert kwargs["tags_field"] == "tags"
+            assert kwargs["created_field"] == "created"
+            assert kwargs["description_field"] == "description"
+
     @patch("common.logging.setup_logging")
     @patch("common.logging.get_logger")
-    @patch("evernote.enex2csv.apply_field_mappings", return_value={"title": "name", "description": "content"})
+    @patch(
+        "evernote.enex2csv.apply_field_mappings",
+        return_value={"title": "name", "description": "content"},
+    )
     @patch("os.access", return_value=True)
     @patch("os.path.isfile", return_value=True)
     @patch("os.path.exists", return_value=True)
@@ -227,7 +295,19 @@ class TestEvernoteConverter:
     @patch("evernote.enex2csv.EvernoteConverter.parse_enex")
     @patch("evernote.enex2csv.EvernoteConverter.extract_note_records")
     @patch("evernote.enex2csv.EvernoteConverter.write_csv")
-    def test_convert_enex(self, mock_write_csv, mock_extract_records, mock_parse_enex, mock_read_file, mock_exists, mock_isfile, mock_access, mock_apply_field_mappings, mock_get_logger, mock_setup_logging):
+    def test_convert_enex(
+        self,
+        mock_write_csv,
+        mock_extract_records,
+        mock_parse_enex,
+        mock_read_file,
+        mock_exists,
+        mock_isfile,
+        mock_access,
+        mock_apply_field_mappings,
+        mock_get_logger,
+        mock_setup_logging,
+    ):
         """Test that convert_enex correctly converts an ENEX file."""
         # Set up mocks
         mock_read_file.return_value = "test content"
@@ -248,7 +328,7 @@ class TestEvernoteConverter:
             field_mappings={"title": "name", "description": "content"},
             preview=True,
             preview_limit=5,
-            dry_run=True
+            dry_run=True,
         )
 
         # Convert file
@@ -268,7 +348,7 @@ class TestEvernoteConverter:
             filter_date_from="2020-01-01",
             filter_date_to="2020-12-31",
             filter_title="test",
-            filter_url="example.com"
+            filter_url="example.com",
         )
 
         # Check that records were written with correct parameters
@@ -278,7 +358,7 @@ class TestEvernoteConverter:
             mock_apply_field_mappings.return_value,
             preview=True,
             preview_limit=5,
-            dry_run=True
+            dry_run=True,
         )
 
         # Verify logging calls
@@ -288,7 +368,9 @@ class TestEvernoteConverter:
         self.mock_logger.info.assert_any_call("  - Date to: 2020-12-31")
         self.mock_logger.info.assert_any_call("  - Title contains: test")
         self.mock_logger.info.assert_any_call("  - URL contains: example.com")
-        self.mock_logger.info.assert_any_call("Dry run mode enabled: validating without writing files")
+        self.mock_logger.info.assert_any_call(
+            "Dry run mode enabled: validating without writing files"
+        )
         self.mock_logger.info.assert_any_call("Preview mode enabled: showing up to 5 items")
         self.mock_logger.info.assert_any_call("Using custom field mappings:")
         self.mock_logger.info.assert_any_call("  - title -> name")
@@ -305,7 +387,9 @@ class TestEvernoteConverter:
         mock_converter_class.return_value = mock_converter
 
         # Call main
-        with patch("sys.argv", ["script.py", "--input-file", "input.enex", "--output-file", "output.csv"]):
+        with patch(
+            "sys.argv", ["script.py", "--input-file", "input.enex", "--output-file", "output.csv"]
+        ):
             EvernoteConverter.main()
 
         # Check that arguments were parsed
