@@ -5,9 +5,7 @@ This module provides a plugin for directly importing bookmarks into Raindrop.io 
 """
 
 import argparse
-from typing import List, Optional
 
-from common.cli import create_base_parser, parse_args
 from common.plugins import BaseImportPlugin, register_plugin
 from raindrop_api.api_import import import_to_raindrop
 
