@@ -9,7 +9,7 @@ packages = [{include = "*"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 python-dateutil = "^2.9.0.post0"
-lxml = "^5.4.0"
+lxml = ">=5.4,<7.0"
 html2text = "^2025.4.15"
 bs4 = "^0.0.2"
 tqdm = "^4.67.1"
