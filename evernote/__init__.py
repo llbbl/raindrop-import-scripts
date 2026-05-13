@@ -60,10 +60,9 @@ class EvernoteImportPlugin(BaseImportPlugin):
             action="store_true",
         )
         
-        # Update the metavar for input-file to be more specific
-        parser._option_string_actions["--input-file"].metavar = "ENEXFILE"
-        parser._option_string_actions["--input-file"].help = "Input ENEX file path"
-        
+        # Update the metavar/help for --input-file via the BaseConverter helper.
+        EvernoteConverter.configure_input_file_arg(parser, "ENEXFILE", "Input ENEX file path")
+
         return parser
     
     @classmethod

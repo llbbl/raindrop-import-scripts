@@ -9,7 +9,7 @@ from typing import List
 
 from common.cli import create_base_parser, parse_args
 from common.plugins import BaseImportPlugin, register_plugin
-from chrome.chrome2csv import convert_json
+from chrome.chrome2csv import ChromeBookmarkConverter, convert_json
 
 
 @register_plugin
@@ -53,11 +53,12 @@ class ChromeImportPlugin(BaseImportPlugin):
             An argument parser configured for this import source.
         """
         parser = create_base_parser(cls.get_description())
-        
-        # Update the metavar for input-file to be more specific
-        parser._option_string_actions["--input-file"].metavar = "JSONFILE"
-        parser._option_string_actions["--input-file"].help = "Input JSON file path (typically 'Bookmarks' file from Chrome)"
-        
+
+        # Update the metavar/help for --input-file via the BaseConverter helper.
+        ChromeBookmarkConverter.configure_input_file_arg(
+            parser, "JSONFILE", "Input JSON file path (typically 'Bookmarks' file from Chrome)"
+        )
+
         return parser
     
     @classmethod

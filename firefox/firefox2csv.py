@@ -19,7 +19,6 @@ Example:
     python firefox2csv.py --input-file bookmarks-2023-05-18.json --output-file firefox.csv
 """
 
-import csv
 import json
 import sys
 import argparse
@@ -27,6 +26,7 @@ from datetime import datetime
 from tqdm import tqdm
 from typing import Dict, List, Any, Optional
 
+from common.base_converter import BaseConverter
 from common.cli import create_base_parser, parse_args
 from common.logging import setup_logging, get_logger
 from common.validation import validate_input_file, validate_output_file
@@ -34,25 +34,12 @@ from common.field_mapping import apply_field_mappings, map_rows
 from common.preview import preview_items
 
 
-class FirefoxBookmarkConverter:
+class FirefoxBookmarkConverter(BaseConverter):
     """A class to handle the conversion of Firefox bookmarks from JSON to CSV format."""
 
-    def __init__(self, input_file: str, output_file: str, logger=None):
-        """
-        Initialize the FirefoxBookmarkConverter.
-
-        Parameters
-        ----------
-        input_file : str
-            Path to the input JSON file.
-        output_file : str
-            Path to the output CSV file.
-        logger : Optional[Logger]
-            Logger instance for logging messages.
-        """
-        self.input_file = input_file
-        self.output_file = output_file
-        self.logger = logger or get_logger()
+    def read_input(self) -> dict[str, Any]:
+        """Read and parse the Firefox bookmarks JSON file (BaseConverter hook)."""
+        return self.read_json_file()
 
     def read_json_file(self) -> Dict[str, Any]:
         """
@@ -260,7 +247,7 @@ class FirefoxBookmarkConverter:
                     return
 
                 fieldnames = list(mapped_rows[0])
-                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer = self.new_csv_writer(f, fieldnames)
                 writer.writeheader()
 
                 for row in tqdm(mapped_rows, desc="Writing CSV rows"):
@@ -323,11 +310,10 @@ def parse_command_line_args(args: list[str]) -> argparse.Namespace:
     """
     parser = create_base_parser("Convert Firefox bookmarks JSON file to CSV")
 
-    # Update the metavar for input-file to be more specific
-    parser._option_string_actions["--input-file"].metavar = "JSONFILE"
-    parser._option_string_actions[
-        "--input-file"
-    ].help = "Input JSON file path (exported from Firefox bookmarks)"
+    # Update the metavar/help for --input-file via the BaseConverter helper.
+    FirefoxBookmarkConverter.configure_input_file_arg(
+        parser, "JSONFILE", "Input JSON file path (exported from Firefox bookmarks)"
+    )
 
     return parse_args(parser, args)
 

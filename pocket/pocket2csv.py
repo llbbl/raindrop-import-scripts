@@ -15,7 +15,6 @@ Example:
     python pocket2csv.py --input-file ril_export.html --output-file pocket.csv
 """
 
-import csv
 import sys
 import argparse
 import os
@@ -25,6 +24,7 @@ from typing import Optional, List, Dict, Any
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
+from common.base_converter import BaseConverter
 from common.cli import create_base_parser, parse_args
 from common.logging import setup_logging, get_logger
 from common.validation import validate_input_file, validate_output_file
@@ -32,7 +32,7 @@ from common.field_mapping import apply_field_mappings, map_rows
 from common.preview import preview_items
 
 
-class PocketConverter:
+class PocketConverter(BaseConverter):
     """
     A class for converting Pocket HTML export files to CSV format.
 
@@ -40,24 +40,9 @@ class PocketConverter:
     extract bookmark information, and write it to a CSV file for import into Raindrop.io.
     """
 
-    def __init__(self, input_file: str, output_file: str, logger=None):
-        """
-        Initialize the PocketConverter.
-
-        Parameters
-        ----------
-        input_file : str
-            Path to the input Pocket HTML export file.
-        output_file : str
-            Path to the output CSV file.
-        logger : logging.Logger, optional
-            Logger instance to use for logging. If None, one will be obtained
-            via ``get_logger()`` (which falls back to a default logger when
-            ``setup_logging()`` has not run yet).
-        """
-        self.input_file = input_file
-        self.output_file = output_file
-        self.logger = logger or get_logger()
+    def read_input(self) -> BeautifulSoup:
+        """Read and parse the Pocket HTML file (BaseConverter hook)."""
+        return self.parse_html_content(self.read_html_file(self.input_file))
 
     def parse_command_line_args(self, args: list[str]) -> argparse.Namespace:
         """
@@ -75,9 +60,8 @@ class PocketConverter:
         """
         parser = create_base_parser("Convert Pocket HTML file to CSV")
 
-        # Update the metavar for input-file to be more specific
-        parser._option_string_actions["--input-file"].metavar = "HTMLFILE"
-        parser._option_string_actions["--input-file"].help = "Input HTML file path"
+        # Update the metavar/help for --input-file via the BaseConverter helper.
+        self.configure_input_file_arg(parser, "HTMLFILE", "Input HTML file path")
 
         return parse_args(parser, args)
 
@@ -129,7 +113,7 @@ class PocketConverter:
 
     def extract_bookmarks(
         self,
-        soup: BeautifulSoup,
+        data: BeautifulSoup,
         filter_tag: Optional[str] = None,
         filter_date_from: Optional[str] = None,
         filter_date_to: Optional[str] = None,
@@ -142,7 +126,7 @@ class PocketConverter:
 
         Parameters
         ----------
-        soup : BeautifulSoup
+        data : BeautifulSoup
             Parsed HTML content.
         filter_tag : str, optional
             Filter bookmarks by tag (comma-separated list for multiple tags).
@@ -168,7 +152,7 @@ class PocketConverter:
 
         try:
             # Get all list items (bookmarks)
-            bookmarks = soup.find_all("li")
+            bookmarks = data.find_all("li")
             total_bookmarks = len(bookmarks)
             self.logger.info(f"Found {total_bookmarks} bookmarks")
 
@@ -286,9 +270,9 @@ class PocketConverter:
                 # Free up memory by clearing the soup's cache after each chunk.
                 # BeautifulSoup forwards unknown attributes via __getattr__, so
                 # check that clear_cache is actually defined on the type before invoking it.
-                clear_cache = getattr(type(soup), "clear_cache", None)
+                clear_cache = getattr(type(data), "clear_cache", None)
                 if callable(clear_cache):
-                    soup.clear_cache()
+                    data.clear_cache()
 
             # Close progress bar
             progress_bar.close()
@@ -381,14 +365,7 @@ class PocketConverter:
                     return
 
                 fieldnames = list(mapped_rows[0])
-                writer = csv.DictWriter(
-                    f,
-                    fieldnames=fieldnames,
-                    delimiter=",",
-                    lineterminator="\n",
-                    quotechar='"',
-                    quoting=csv.QUOTE_ALL,
-                )
+                writer = self.new_csv_writer(f, fieldnames)
 
                 # Write header
                 writer.writeheader()
@@ -541,8 +518,7 @@ def main() -> None:
     """
     # Parse args first to honor --log-file
     parser = create_base_parser("Convert Pocket HTML file to CSV")
-    parser._option_string_actions["--input-file"].metavar = "HTMLFILE"
-    parser._option_string_actions["--input-file"].help = "Input HTML file path"
+    PocketConverter.configure_input_file_arg(parser, "HTMLFILE", "Input HTML file path")
     parsed_args = parse_args(parser, sys.argv[1:])
 
     setup_logging(getattr(parsed_args, "log_file", None))

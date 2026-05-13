@@ -377,15 +377,6 @@ class TestEvernoteConverter:
         self.mock_logger.info.assert_any_call("  - title -> name")
         self.mock_logger.info.assert_any_call("  - description -> content")
 
-    @pytest.mark.xfail(
-        reason=(
-            "Real bug: EvernoteConverter.write_csv constructs csv.DictWriter "
-            "without quoting=csv.QUOTE_ALL, so output is not consistently quoted "
-            "(diverges from chrome reference). Cycle 3d (BaseConverter) or a "
-            "follow-up should standardize csv.DictWriter kwargs."
-        ),
-        strict=True,
-    )
     @patch("builtins.open", new_callable=mock_open)
     @patch("csv.DictWriter")
     def test_write_csv_uses_quote_all(self, mock_dict_writer, mock_file):

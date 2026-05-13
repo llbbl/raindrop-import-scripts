@@ -54,11 +54,10 @@ class PocketImportPlugin(BaseImportPlugin):
             An argument parser configured for this import source.
         """
         parser = create_base_parser(cls.get_description())
-        
-        # Update the metavar for input-file to be more specific
-        parser._option_string_actions["--input-file"].metavar = "HTMLFILE"
-        parser._option_string_actions["--input-file"].help = "Input HTML file path"
-        
+
+        # Update the metavar/help for --input-file via the BaseConverter helper.
+        PocketConverter.configure_input_file_arg(parser, "HTMLFILE", "Input HTML file path")
+
         return parser
     
     @classmethod

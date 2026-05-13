@@ -54,11 +54,12 @@ class FirefoxImportPlugin(BaseImportPlugin):
             An argument parser configured for this import source.
         """
         parser = create_base_parser(cls.get_description())
-        
-        # Update the metavar for input-file to be more specific
-        parser._option_string_actions["--input-file"].metavar = "JSONFILE"
-        parser._option_string_actions["--input-file"].help = "Input JSON file path (exported from Firefox bookmarks)"
-        
+
+        # Update the metavar/help for --input-file via the BaseConverter helper.
+        FirefoxBookmarkConverter.configure_input_file_arg(
+            parser, "JSONFILE", "Input JSON file path (exported from Firefox bookmarks)"
+        )
+
         return parser
     
     @classmethod

@@ -19,7 +19,6 @@ Example:
 """
 
 import argparse
-import csv
 import json
 import sys
 from dataclasses import dataclass
@@ -28,6 +27,7 @@ from typing import Any
 
 from tqdm import tqdm
 
+from common.base_converter import BaseConverter
 from common.cli import create_base_parser, parse_args
 from common.field_mapping import apply_field_mappings, map_rows
 from common.logging import get_logger, setup_logging
@@ -56,26 +56,12 @@ class ChromeBookmark:
         }
 
 
-class ChromeBookmarkConverter:
+class ChromeBookmarkConverter(BaseConverter):
     """A class to handle the conversion of Chrome bookmarks from JSON to CSV format."""
 
-    def __init__(self, input_file: str, output_file: str, logger=None):
-        """
-        Initialize the ChromeBookmarkConverter.
-
-        Parameters
-        ----------
-        input_file : str
-            Path to the input JSON file.
-        output_file : str
-            Path to the output CSV file.
-        logger : Optional[logging.Logger]
-            Logger instance for logging messages. If None, a logger will be retrieved
-            via ``get_logger()``.
-        """
-        self.input_file = input_file
-        self.output_file = output_file
-        self.logger = logger or get_logger()
+    def read_input(self) -> dict[str, Any]:
+        """Read and parse the Chrome bookmarks JSON file (BaseConverter hook)."""
+        return self.read_json_file()
 
     def read_json_file(self) -> dict[str, Any]:
         """
@@ -278,14 +264,7 @@ class ChromeBookmarkConverter:
         try:
             with open(self.output_file, "w", encoding="utf-8", newline="") as f:
                 fieldnames = list(mapped_rows[0])
-                writer = csv.DictWriter(
-                    f,
-                    fieldnames=fieldnames,
-                    delimiter=",",
-                    lineterminator="\n",
-                    quotechar='"',
-                    quoting=csv.QUOTE_ALL,
-                )
+                writer = self.new_csv_writer(f, fieldnames)
                 writer.writeheader()
 
                 for row in tqdm(mapped_rows, desc="Writing CSV rows"):
@@ -346,10 +325,9 @@ def parse_command_line_args(args: list[str]) -> argparse.Namespace:
         Parsed command line arguments.
     """
     parser = create_base_parser("Convert Chrome bookmarks JSON file to CSV")
-    parser._option_string_actions["--input-file"].metavar = "JSONFILE"
-    parser._option_string_actions[
-        "--input-file"
-    ].help = "Input JSON file path (typically 'Bookmarks' file from Chrome)"
+    ChromeBookmarkConverter.configure_input_file_arg(
+        parser, "JSONFILE", "Input JSON file path (typically 'Bookmarks' file from Chrome)"
+    )
     return parse_args(parser, args)
 
 

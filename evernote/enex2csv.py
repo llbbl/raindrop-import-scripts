@@ -19,9 +19,7 @@ Example:
 """
 
 import argparse
-import csv
 import datetime
-import logging
 import os
 import sys
 import time
@@ -32,6 +30,7 @@ from html2text import HTML2Text
 from lxml import etree
 from tqdm import tqdm
 
+from common.base_converter import BaseConverter
 from common.cli import create_base_parser, parse_args
 from common.logging import setup_logging, get_logger
 from common.validation import validate_input_file, validate_output_file
@@ -39,34 +38,23 @@ from common.field_mapping import apply_field_mappings, map_rows
 from common.preview import preview_items
 
 
-class EvernoteConverter:
+class EvernoteConverter(BaseConverter):
     """
     Convert Evernote ENEX files to CSV format for import into Raindrop.io.
     """
 
-    def __init__(
-        self,
-        input_file: str,
-        output_file: str,
-        logger: Optional[logging.Logger] = None,
-    ):
-        """
-        Initialize the converter.
+    def read_input(self) -> etree.ElementTree:
+        """Read and parse the ENEX file (BaseConverter hook)."""
+        return self.parse_enex(self.read_enex_file(self.input_file))
 
-        Parameters
-        ----------
-        input_file : str
-            Path to the input ENEX file.
-        output_file : str
-            Path to the output CSV file.
-        logger : logging.Logger, optional
-            Logger instance to use. If None, one is obtained via
-            ``get_logger()`` (which falls back to a default logger when
-            ``setup_logging()`` has not been invoked yet).
+    def extract_bookmarks(self, data: etree.ElementTree) -> list[dict]:
+        """Extract bookmark records (BaseConverter hook).
+
+        Thin wrapper over :meth:`extract_note_records` with no filters and no
+        markdown conversion. The richer entrypoint is ``extract_note_records``,
+        which is what ``convert_enex`` calls with the full filter set.
         """
-        self.input_file = input_file
-        self.output_file = output_file
-        self.logger = logger or get_logger()
+        return self.extract_note_records(data, use_markdown=False)
 
     @staticmethod
     def parse_command_line_args(args: list[str]) -> argparse.Namespace:
@@ -90,9 +78,8 @@ class EvernoteConverter:
             action="store_true",
         )
 
-        # Update the metavar for input-file to be more specific
-        parser._option_string_actions["--input-file"].metavar = "ENEXFILE"
-        parser._option_string_actions["--input-file"].help = "Input ENEX file path"
+        # Update the metavar/help for --input-file via the BaseConverter helper.
+        EvernoteConverter.configure_input_file_arg(parser, "ENEXFILE", "Input ENEX file path")
 
         return parse_args(parser, args)
 
@@ -383,7 +370,7 @@ class EvernoteConverter:
         # Write records to CSV
         try:
             with open(csv_filename, "w", newline="", encoding="utf-8") as csv_file:
-                writer = csv.DictWriter(csv_file, fieldnames=note_records[0].keys())
+                writer = self.new_csv_writer(csv_file, list(note_records[0].keys()))
                 writer.writeheader()
                 writer.writerows(note_records)
         except Exception:

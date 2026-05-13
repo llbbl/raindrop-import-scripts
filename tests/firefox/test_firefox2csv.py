@@ -176,15 +176,6 @@ class TestFirefoxBookmarkConverter:
         mock_writer.writeheader.assert_called_once()
         mock_writer.writerow.assert_called()
 
-    @pytest.mark.xfail(
-        reason=(
-            "Real bug: FirefoxBookmarkConverter.write_csv_file constructs "
-            "csv.DictWriter without quoting=csv.QUOTE_ALL, so output is not "
-            "consistently quoted (diverges from chrome reference). Cycle 3d "
-            "(BaseConverter) or a follow-up should standardize csv.DictWriter kwargs."
-        ),
-        strict=True,
-    )
     @patch("builtins.open", new_callable=mock_open)
     @patch("csv.DictWriter")
     def test_write_csv_file_uses_quote_all(self, mock_dict_writer, mock_file):
