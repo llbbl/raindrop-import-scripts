@@ -14,7 +14,7 @@ html2text = "^2025.4.15"
 bs4 = "^0.0.2"
 tqdm = "^4.67.1"
 pyyaml = "^6.0.2"
-requests = "^2.32.3"
+requests = "^2.32.4"
 python-dotenv = "^1.1.0"
 
 [tool.poetry.group.dev.dependencies]
