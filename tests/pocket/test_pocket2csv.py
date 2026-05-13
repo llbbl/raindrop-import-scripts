@@ -43,7 +43,7 @@ class TestPocket2Csv:
     def test_read_html_file(self, mock_file):
         """Test that read_html_file correctly reads a file."""
         content = self.converter.read_html_file("input.html")
-        mock_file.assert_called_once_with("input.html", "r")
+        mock_file.assert_called_once_with("input.html")
         assert content == "test content"
 
     @patch("builtins.open", side_effect=OSError("File not found"))

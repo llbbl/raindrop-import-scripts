@@ -1,8 +1,7 @@
-import os
-import pytest
 import logging
 import tempfile
-from common.logging import setup_logging, get_logger
+
+from common.logging import get_logger, setup_logging
 
 
 class TestLogging:
@@ -12,6 +11,7 @@ class TestLogging:
         """Test that setup_logging configures logging with console output only."""
         # Reset the logger before testing
         import common.logging
+
         common.logging.logger = None
 
         # Set up logging without a log file
@@ -34,6 +34,7 @@ class TestLogging:
         """Test that setup_logging configures logging with both console and file output."""
         # Reset the logger before testing
         import common.logging
+
         common.logging.logger = None
 
         # Create a temporary log file
@@ -66,6 +67,7 @@ class TestLogging:
         """
         # Reset the logger before testing
         import common.logging
+
         common.logging.logger = None
 
         # Should not raise
@@ -78,6 +80,7 @@ class TestLogging:
         """Test that setup_logging handles invalid log files gracefully."""
         # Reset the logger before testing
         import common.logging
+
         common.logging.logger = None
 
         # Store the original FileHandler
@@ -85,7 +88,7 @@ class TestLogging:
 
         # Mock logging.FileHandler to raise an exception
         def mock_file_handler(*args, **kwargs):
-            raise IOError("Mock file handler error")
+            raise OSError("Mock file handler error")
 
         monkeypatch.setattr(logging, "FileHandler", mock_file_handler)
 

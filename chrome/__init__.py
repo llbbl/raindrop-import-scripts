@@ -5,11 +5,10 @@ This module provides a plugin for importing Chrome bookmarks JSON export files i
 """
 
 import argparse
-from typing import List
 
-from common.cli import create_base_parser, parse_args
-from common.plugins import BaseImportPlugin, register_plugin
 from chrome.chrome2csv import ChromeBookmarkConverter, convert_json
+from common.cli import create_base_parser
+from common.plugins import BaseImportPlugin, register_plugin
 
 
 @register_plugin
@@ -17,36 +16,36 @@ class ChromeImportPlugin(BaseImportPlugin):
     """
     Plugin for importing Chrome bookmarks JSON export files into Raindrop.io.
     """
-    
+
     @classmethod
     def get_name(cls) -> str:
         """
         Get the name of the import source.
-        
+
         Returns
         -------
         str
             The name of the import source.
         """
         return "chrome"
-    
+
     @classmethod
     def get_description(cls) -> str:
         """
         Get a description of the import source.
-        
+
         Returns
         -------
         str
             A description of the import source.
         """
         return "Convert Chrome bookmarks JSON file to CSV for import into Raindrop.io"
-    
+
     @classmethod
     def create_parser(cls) -> argparse.ArgumentParser:
         """
         Create an argument parser for this import source.
-        
+
         Returns
         -------
         argparse.ArgumentParser
@@ -60,17 +59,17 @@ class ChromeImportPlugin(BaseImportPlugin):
         )
 
         return parser
-    
+
     @classmethod
     def convert(cls, args: argparse.Namespace) -> None:
         """
         Convert the input file to CSV format.
-        
+
         Parameters
         ----------
         args : argparse.Namespace
             Parsed command line arguments.
-        
+
         Returns
         -------
         None

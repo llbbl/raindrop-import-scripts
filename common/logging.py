@@ -7,12 +7,11 @@ and support for both console and file output.
 
 import logging
 import sys
-from typing import Optional
 
 logger = None
 
 
-def setup_logging(log_file: Optional[str] = None) -> None:
+def setup_logging(log_file: str | None = None) -> None:
     """
     Initialize logger and log format.
 
@@ -30,12 +29,12 @@ def setup_logging(log_file: Optional[str] = None) -> None:
     console_handler.setFormatter(formatter)
 
     # Initialize handlers list
-    handlers = [console_handler]
+    handlers: list[logging.Handler] = [console_handler]
 
     # Add file handler if log file is provided
     if log_file:
         try:
-            file_handler = logging.FileHandler(log_file, mode='a')
+            file_handler = logging.FileHandler(log_file, mode="a")
             file_handler.setFormatter(formatter)
             handlers.append(file_handler)
             print(f"Logging to file: {log_file}")

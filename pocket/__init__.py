@@ -5,11 +5,10 @@ This module provides a plugin for importing Pocket HTML export files into Raindr
 """
 
 import argparse
-from typing import List
 
-from common.cli import create_base_parser, parse_args
-from common.plugins import BaseImportPlugin, register_plugin
+from common.cli import create_base_parser
 from common.logging import get_logger
+from common.plugins import BaseImportPlugin, register_plugin
 from pocket.pocket2csv import PocketConverter
 
 
@@ -18,36 +17,36 @@ class PocketImportPlugin(BaseImportPlugin):
     """
     Plugin for importing Pocket HTML export files into Raindrop.io.
     """
-    
+
     @classmethod
     def get_name(cls) -> str:
         """
         Get the name of the import source.
-        
+
         Returns
         -------
         str
             The name of the import source.
         """
         return "pocket"
-    
+
     @classmethod
     def get_description(cls) -> str:
         """
         Get a description of the import source.
-        
+
         Returns
         -------
         str
             A description of the import source.
         """
         return "Convert Pocket HTML file to CSV for import into Raindrop.io"
-    
+
     @classmethod
     def create_parser(cls) -> argparse.ArgumentParser:
         """
         Create an argument parser for this import source.
-        
+
         Returns
         -------
         argparse.ArgumentParser
@@ -59,17 +58,17 @@ class PocketImportPlugin(BaseImportPlugin):
         PocketConverter.configure_input_file_arg(parser, "HTMLFILE", "Input HTML file path")
 
         return parser
-    
+
     @classmethod
     def convert(cls, args: argparse.Namespace) -> None:
         """
         Convert the input file to CSV format.
-        
+
         Parameters
         ----------
         args : argparse.Namespace
             Parsed command line arguments.
-        
+
         Returns
         -------
         None

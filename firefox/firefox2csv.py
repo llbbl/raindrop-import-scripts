@@ -19,19 +19,20 @@ Example:
     python firefox2csv.py --input-file bookmarks-2023-05-18.json --output-file firefox.csv
 """
 
+import argparse
 import json
 import sys
-import argparse
 from datetime import datetime
+from typing import Any
+
 from tqdm import tqdm
-from typing import Dict, List, Any, Optional
 
 from common.base_converter import BaseConverter
 from common.cli import create_base_parser, parse_args
-from common.logging import setup_logging, get_logger
-from common.validation import validate_input_file, validate_output_file
 from common.field_mapping import apply_field_mappings, map_rows
+from common.logging import get_logger, setup_logging
 from common.preview import preview_items
+from common.validation import validate_input_file, validate_output_file
 
 
 class FirefoxBookmarkConverter(BaseConverter):
@@ -41,7 +42,7 @@ class FirefoxBookmarkConverter(BaseConverter):
         """Read and parse the Firefox bookmarks JSON file (BaseConverter hook)."""
         return self.read_json_file()
 
-    def read_json_file(self) -> Dict[str, Any]:
+    def read_json_file(self) -> dict[str, Any]:
         """
         Read JSON file content.
 
@@ -59,12 +60,12 @@ class FirefoxBookmarkConverter(BaseConverter):
         """
         self.logger.info(f'Reading input file "{self.input_file}"')
         try:
-            with open(self.input_file, "r", encoding="utf-8") as f:
+            with open(self.input_file, encoding="utf-8") as f:
                 return json.load(f)
         except json.JSONDecodeError:
             self.logger.exception(f"Failed to parse JSON from file: {self.input_file}")
             raise
-        except IOError:
+        except OSError:
             self.logger.exception(f"Failed to read input file: {self.input_file}")
             raise
         except Exception:
@@ -72,8 +73,8 @@ class FirefoxBookmarkConverter(BaseConverter):
             raise
 
     def process_bookmark_node(
-        self, node: Dict[str, Any], path: List[str] = None
-    ) -> List[Dict[str, str]]:
+        self, node: dict[str, Any], path: list[str] | None = None
+    ) -> list[dict[str, str]]:
         """
         Process a bookmark node recursively.
 
@@ -131,7 +132,7 @@ class FirefoxBookmarkConverter(BaseConverter):
 
         return results
 
-    def extract_bookmarks(self, data: Dict[str, Any]) -> List[Dict[str, str]]:
+    def extract_bookmarks(self, data: dict[str, Any]) -> list[dict[str, str]]:
         """
         Extract bookmarks from parsed JSON.
 
@@ -176,8 +177,8 @@ class FirefoxBookmarkConverter(BaseConverter):
 
     def write_csv_file(
         self,
-        csv_rows: List[Dict[str, str]],
-        field_mappings: Optional[Dict[str, str]] = None,
+        csv_rows: list[dict[str, str]],
+        field_mappings: dict[str, str] | None = None,
         preview: bool = False,
         preview_limit: int = 10,
         dry_run: bool = False,
@@ -261,7 +262,7 @@ class FirefoxBookmarkConverter(BaseConverter):
 
     def convert(
         self,
-        field_mappings: Optional[Dict[str, str]] = None,
+        field_mappings: dict[str, str] | None = None,
         preview: bool = False,
         preview_limit: int = 10,
         dry_run: bool = False,

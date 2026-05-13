@@ -6,11 +6,13 @@ This script tests that environment variables from a .env file are correctly
 loaded and applied to command-line arguments.
 """
 
-import os
-import sys
 import argparse
-from common.config import load_config, apply_config_to_args
-from common.logging import setup_logging, get_logger
+import contextlib
+import sys
+
+from common.config import apply_config_to_args, load_config
+from common.logging import get_logger, setup_logging
+
 
 def main():
     """
@@ -23,7 +25,9 @@ def main():
     # Create a simple argument parser
     parser = argparse.ArgumentParser(description="Test .env file support")
     parser.add_argument("--log-file", help="Log file path")
-    parser.add_argument("--dry-run", help="Dry run mode")  # Changed from action="store_true" to accept a value
+    parser.add_argument(
+        "--dry-run", help="Dry run mode"
+    )  # Changed from action="store_true" to accept a value
     parser.add_argument("--api-token", help="API token")
     parser.add_argument("--collection-id", type=int, help="Collection ID")
     parser.add_argument("--batch-size", type=int, help="Batch size")
@@ -64,7 +68,7 @@ def main():
         "dry_run": True,
         "api_token": "test_token_12345",
         "collection_id": 1,
-        "batch_size": 10
+        "batch_size": 10,
     }
 
     all_matched = True
@@ -75,13 +79,13 @@ def main():
             if isinstance(expected, bool) and isinstance(actual, str):
                 actual = actual.lower() == "true"
             elif isinstance(expected, int) and isinstance(actual, str):
-                try:
+                with contextlib.suppress(ValueError):
                     actual = int(actual)
-                except ValueError:
-                    pass
 
             if actual != expected:
-                logger.error(f"Mismatch for {key}: expected {expected} ({type(expected)}), got {actual} ({type(actual)})")
+                logger.error(
+                    f"Mismatch for {key}: expected {expected} ({type(expected)}), got {actual} ({type(actual)})"
+                )
                 all_matched = False
         else:
             logger.error(f"Missing argument: {key}")
@@ -93,6 +97,7 @@ def main():
     else:
         logger.error("Some values from .env.test were not correctly applied.")
         return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())

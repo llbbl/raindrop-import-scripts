@@ -1,12 +1,12 @@
+import argparse
 import os
 import sys
-import pytest
-import argparse
 import tempfile
-import json
-import datetime
-from unittest.mock import patch, MagicMock, mock_open
-from firefox.firefox2csv import FirefoxBookmarkConverter, parse_command_line_args, main
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
+
+from firefox.firefox2csv import FirefoxBookmarkConverter, main, parse_command_line_args
 
 
 class TestFirefoxBookmarkConverter:
@@ -30,10 +30,10 @@ class TestFirefoxBookmarkConverter:
     def test_read_json_file(self, mock_file):
         """Test that read_json_file correctly reads a file."""
         content = self.converter.read_json_file()
-        mock_file.assert_called_once_with("input.json", "r", encoding="utf-8")
+        mock_file.assert_called_once_with("input.json", encoding="utf-8")
         assert content == {"children": []}
 
-    @patch("builtins.open", side_effect=IOError("File not found"))
+    @patch("builtins.open", side_effect=OSError("File not found"))
     def test_read_json_file_error(self, mock_file):
         """Test that read_json_file handles errors correctly."""
         with pytest.raises(IOError):

@@ -20,22 +20,21 @@ Example:
 
 import argparse
 import datetime
-import os
 import sys
-import time
-from typing import Callable, Optional, List, Dict, Any
+from collections.abc import Callable
+from typing import Any
 
 from dateutil.parser import isoparse
 from html2text import HTML2Text
-from lxml import etree
+from lxml import etree  # ty: ignore[unresolved-import]
 from tqdm import tqdm
 
 from common.base_converter import BaseConverter
 from common.cli import create_base_parser, parse_args
-from common.logging import setup_logging, get_logger
-from common.validation import validate_input_file, validate_output_file
 from common.field_mapping import apply_field_mappings, map_rows
+from common.logging import get_logger, setup_logging
 from common.preview import preview_items
+from common.validation import validate_input_file, validate_output_file
 
 
 class EvernoteConverter(BaseConverter):
@@ -99,7 +98,7 @@ class EvernoteConverter(BaseConverter):
         """
         self.logger.info(f'Reading input file "{enex_filename}"')
         try:
-            with open(enex_filename, "r", encoding="utf-8") as enex_fd:
+            with open(enex_filename, encoding="utf-8") as enex_fd:
                 return enex_fd.read()
         except Exception:
             self.logger.exception(f"Failed to read ENEX file: {enex_filename}")
@@ -130,8 +129,11 @@ class EvernoteConverter(BaseConverter):
 
     @staticmethod
     def xpath_first_or_default(
-        node: etree._Element, query: str, default: object, formatter: Callable[[str], object] = None
-    ) -> object:
+        node: etree._Element,
+        query: str,
+        default: Any,
+        formatter: Callable[[str], Any] | None = None,
+    ) -> Any:
         """
         Select the first results from an XPath query or fall back to a default value.
 
@@ -199,25 +201,25 @@ class EvernoteConverter(BaseConverter):
             date = isoparse(date_str)
             if date.year == 0:
                 # If the year is 0000, use the current year
-                now = datetime.datetime.utcnow()
+                now = datetime.datetime.utcnow()  # ty: ignore[deprecated]
                 date = date.replace(year=now.year)
             return date
         except Exception:
             self.logger.warning(
                 f"Failed to parse ENEX datetime value {date_str!r}; substituting current UTC time"
             )
-            return datetime.datetime.utcnow()
+            return datetime.datetime.utcnow()  # ty: ignore[deprecated]
 
     def extract_note_records(
         self,
         xml_tree: etree.ElementTree,
         use_markdown: bool,
-        filter_tag: Optional[str] = None,
-        filter_date_from: Optional[str] = None,
-        filter_date_to: Optional[str] = None,
-        filter_title: Optional[str] = None,
-        filter_url: Optional[str] = None,
-    ) -> List[Dict]:
+        filter_tag: str | None = None,
+        filter_date_from: str | None = None,
+        filter_date_to: str | None = None,
+        filter_title: str | None = None,
+        filter_url: str | None = None,
+    ) -> list[dict]:
         """
         Extract note records from the XML tree.
 
@@ -312,8 +314,8 @@ class EvernoteConverter(BaseConverter):
     def write_csv(
         self,
         csv_filename: str,
-        note_records: List[Dict],
-        field_mappings: Optional[Dict[str, str]] = None,
+        note_records: list[dict],
+        field_mappings: dict[str, str] | None = None,
         preview: bool = False,
         preview_limit: int = 10,
         dry_run: bool = False,

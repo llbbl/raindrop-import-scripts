@@ -7,7 +7,6 @@ with consistent patterns across different import scripts.
 
 import argparse
 import sys
-from typing import List, Optional
 
 from common.validation import validate_input_file, validate_output_file
 
@@ -66,7 +65,9 @@ def create_base_parser(description: str) -> argparse.ArgumentParser:
     return parser
 
 
-def parse_args(parser: argparse.ArgumentParser, args: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(
+    parser: argparse.ArgumentParser, args: list[str] | None = None
+) -> argparse.Namespace:
     """
     Parse command line arguments using the provided parser.
 

@@ -105,7 +105,7 @@ class TestRaindropApiImporter:
         importer, _ = _make_importer(
             client_id="invalid_client_id", client_secret="invalid_client_secret"
         )
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="Failed to get access token"):
             importer.get_access_token()
         mock_post.assert_called_once()
 
@@ -119,7 +119,7 @@ class TestRaindropApiImporter:
         importer, _ = _make_importer(
             client_id="valid_client_id", client_secret="valid_client_secret"
         )
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="No access token in response"):
             importer.get_access_token()
         mock_post.assert_called_once()
 

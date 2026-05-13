@@ -15,20 +15,17 @@ Example:
     python pocket2csv.py --input-file ril_export.html --output-file pocket.csv
 """
 
-import sys
 import argparse
-import os
-import time
+import sys
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 
 from common.base_converter import BaseConverter
 from common.cli import create_base_parser, parse_args
-from common.logging import setup_logging, get_logger
-from common.validation import validate_input_file, validate_output_file
 from common.field_mapping import apply_field_mappings, map_rows
+from common.logging import get_logger, setup_logging
 from common.preview import preview_items
 
 
@@ -81,9 +78,9 @@ class PocketConverter(BaseConverter):
         """
         self.logger.info(f'Reading input file "{file_path}"')
         try:
-            with open(file_path, "r") as f:
+            with open(file_path) as f:
                 return f.read()
-        except IOError:
+        except OSError:
             self.logger.exception(f"Failed to read input file: {file_path}")
             raise
         except Exception:
@@ -114,11 +111,11 @@ class PocketConverter(BaseConverter):
     def extract_bookmarks(
         self,
         data: BeautifulSoup,
-        filter_tag: Optional[str] = None,
-        filter_date_from: Optional[str] = None,
-        filter_date_to: Optional[str] = None,
-        filter_title: Optional[str] = None,
-        filter_url: Optional[str] = None,
+        filter_tag: str | None = None,
+        filter_date_from: str | None = None,
+        filter_date_to: str | None = None,
+        filter_title: str | None = None,
+        filter_url: str | None = None,
         chunk_size: int = 1000,
     ) -> list[dict[str, str]]:
         """
@@ -169,8 +166,10 @@ class PocketConverter(BaseConverter):
                 for i in range(chunk_start, chunk_end):
                     item = bookmarks[i]
                     try:
-                        # Find the anchor tag within the list item
-                        anchor = item.find("a")
+                        # Find the anchor tag within the list item.
+                        # find_all returns Tag | NavigableString; only Tag has .find().
+                        find_method = getattr(item, "find", None)
+                        anchor = find_method("a") if callable(find_method) else None
                         if not anchor:
                             self.logger.warning(
                                 f"No anchor tag found in bookmark {i + 1}, skipping"
@@ -178,20 +177,26 @@ class PocketConverter(BaseConverter):
                             progress_bar.update(1)
                             continue
 
-                        url: str = anchor.get("href")
-                        title: str = anchor.string
-                        tags: str = anchor.get("tags") or ""  # Default to empty string if None
+                        href = anchor.get("href")
+                        url = href if isinstance(href, str) else ""
+                        title_raw = anchor.string
+                        title = title_raw if isinstance(title_raw, str) else ""
+                        tags_raw = anchor.get("tags")
+                        tags = tags_raw if isinstance(tags_raw, str) else ""
 
                         try:
-                            time_added: float = float(anchor.get("time_added"))
-                            date_added: str = datetime.fromtimestamp(time_added).strftime("%x %X")
+                            time_raw = anchor.get("time_added")
+                            if not isinstance(time_raw, str):
+                                raise ValueError("missing time_added")
+                            time_added = float(time_raw)
+                            date_added = datetime.fromtimestamp(time_added).strftime("%x %X")
                         except (ValueError, TypeError):
                             self.logger.warning(
                                 f"Failed to parse timestamp for bookmark {i + 1}, using current time"
                             )
-                            date_added: str = datetime.now().strftime("%x %X")
+                            date_added = datetime.now().strftime("%x %X")
 
-                        row: Dict[str, str] = {
+                        row: dict[str, str] = {
                             "title": title or "Untitled",  # Default to "Untitled" if None
                             "url": url or "",
                             "created": date_added,
@@ -221,7 +226,7 @@ class PocketConverter(BaseConverter):
                                     should_include = False
                             except ValueError:
                                 self.logger.warning(
-                                    f"Failed to parse date for date-from filter, including bookmark"
+                                    "Failed to parse date for date-from filter, including bookmark"
                                 )
 
                         if filter_date_to and should_include:
@@ -233,18 +238,24 @@ class PocketConverter(BaseConverter):
                                     should_include = False
                             except ValueError:
                                 self.logger.warning(
-                                    f"Failed to parse date for date-to filter, including bookmark"
+                                    "Failed to parse date for date-to filter, including bookmark"
                                 )
 
                         # Filter by title
-                        if filter_title and should_include:
-                            if filter_title.lower() not in (title or "").lower():
-                                should_include = False
+                        if (
+                            filter_title
+                            and should_include
+                            and filter_title.lower() not in (title or "").lower()
+                        ):
+                            should_include = False
 
                         # Filter by URL
-                        if filter_url and should_include:
-                            if filter_url.lower() not in (url or "").lower():
-                                should_include = False
+                        if (
+                            filter_url
+                            and should_include
+                            and filter_url.lower() not in (url or "").lower()
+                        ):
+                            should_include = False
 
                         # Add the bookmark to the list if it passes all filters
                         if should_include:
@@ -272,7 +283,7 @@ class PocketConverter(BaseConverter):
                 # check that clear_cache is actually defined on the type before invoking it.
                 clear_cache = getattr(type(data), "clear_cache", None)
                 if callable(clear_cache):
-                    data.clear_cache()
+                    clear_cache(data)
 
             # Close progress bar
             progress_bar.close()
@@ -285,8 +296,8 @@ class PocketConverter(BaseConverter):
     def write_csv_file(
         self,
         file_path: str,
-        csv_rows: List[Dict[str, str]],
-        field_mappings: Optional[Dict[str, str]] = None,
+        csv_rows: list[dict[str, str]],
+        field_mappings: dict[str, str] | None = None,
         preview: bool = False,
         preview_limit: int = 10,
         dry_run: bool = False,
@@ -399,7 +410,7 @@ class PocketConverter(BaseConverter):
                 progress_bar.close()
 
                 self.logger.info(f"Successfully wrote {total_rows} rows to {file_path}")
-        except IOError:
+        except OSError:
             self.logger.exception(f"Failed to write CSV to {file_path}")
             raise
         except Exception:

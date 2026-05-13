@@ -1,11 +1,10 @@
-import os
-import sys
-import pytest
 import argparse
-import tempfile
 import datetime
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
 from lxml import etree
+
 from evernote.enex2csv import EvernoteConverter
 
 
@@ -49,10 +48,10 @@ class TestEvernoteConverter:
     def test_read_enex_file(self, mock_file):
         """Test that read_enex_file correctly reads a file."""
         content = self.converter.read_enex_file("input.enex")
-        mock_file.assert_called_once_with("input.enex", "r", encoding="utf-8")
+        mock_file.assert_called_once_with("input.enex", encoding="utf-8")
         assert content == "test content"
 
-    @patch("builtins.open", side_effect=IOError("File not found"))
+    @patch("builtins.open", side_effect=OSError("File not found"))
     def test_read_enex_file_error(self, mock_file):
         """Test that read_enex_file handles errors correctly."""
         with pytest.raises(IOError):

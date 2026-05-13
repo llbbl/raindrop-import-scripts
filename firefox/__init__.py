@@ -5,11 +5,10 @@ This module provides a plugin for importing Firefox bookmarks JSON export files 
 """
 
 import argparse
-from typing import List
 
-from common.cli import create_base_parser, parse_args
-from common.plugins import BaseImportPlugin, register_plugin
+from common.cli import create_base_parser
 from common.logging import get_logger
+from common.plugins import BaseImportPlugin, register_plugin
 from firefox.firefox2csv import FirefoxBookmarkConverter
 
 
@@ -18,36 +17,36 @@ class FirefoxImportPlugin(BaseImportPlugin):
     """
     Plugin for importing Firefox bookmarks JSON export files into Raindrop.io.
     """
-    
+
     @classmethod
     def get_name(cls) -> str:
         """
         Get the name of the import source.
-        
+
         Returns
         -------
         str
             The name of the import source.
         """
         return "firefox"
-    
+
     @classmethod
     def get_description(cls) -> str:
         """
         Get a description of the import source.
-        
+
         Returns
         -------
         str
             A description of the import source.
         """
         return "Convert Firefox bookmarks JSON file to CSV for import into Raindrop.io"
-    
+
     @classmethod
     def create_parser(cls) -> argparse.ArgumentParser:
         """
         Create an argument parser for this import source.
-        
+
         Returns
         -------
         argparse.ArgumentParser
@@ -61,17 +60,17 @@ class FirefoxImportPlugin(BaseImportPlugin):
         )
 
         return parser
-    
+
     @classmethod
     def convert(cls, args: argparse.Namespace) -> None:
         """
         Convert the input file to CSV format.
-        
+
         Parameters
         ----------
         args : argparse.Namespace
             Parsed command line arguments.
-        
+
         Returns
         -------
         None
@@ -82,5 +81,5 @@ class FirefoxImportPlugin(BaseImportPlugin):
             field_mappings=args.field_mappings,
             preview=args.preview,
             preview_limit=args.preview_limit,
-            dry_run=args.dry_run
+            dry_run=args.dry_run,
         )
