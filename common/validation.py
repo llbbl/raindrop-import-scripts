@@ -5,9 +5,8 @@ This module provides functions for validating input and output files
 to ensure they exist and are accessible.
 """
 
-import os
 import argparse
-from typing import Optional
+import os
 
 
 def validate_input_file(file_path: str) -> str:
@@ -57,7 +56,7 @@ def validate_output_file(file_path: str) -> str:
     argparse.ArgumentTypeError
         If the output directory doesn't exist or isn't writable.
     """
-    output_dir = os.path.dirname(file_path) or '.'
+    output_dir = os.path.dirname(file_path) or "."
     if not os.path.exists(output_dir):
         raise argparse.ArgumentTypeError(f"Output directory does not exist: {output_dir}")
     if not os.access(output_dir, os.W_OK):

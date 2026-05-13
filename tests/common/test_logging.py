@@ -1,8 +1,7 @@
-import os
-import pytest
 import logging
 import tempfile
-from common.logging import setup_logging, get_logger
+
+from common.logging import get_logger, setup_logging
 
 
 class TestLogging:
@@ -12,6 +11,7 @@ class TestLogging:
         """Test that setup_logging configures logging with console output only."""
         # Reset the logger before testing
         import common.logging
+
         common.logging.logger = None
 
         # Set up logging without a log file
@@ -34,6 +34,7 @@ class TestLogging:
         """Test that setup_logging configures logging with both console and file output."""
         # Reset the logger before testing
         import common.logging
+
         common.logging.logger = None
 
         # Create a temporary log file
@@ -58,20 +59,28 @@ class TestLogging:
             assert file_handlers[0].baseFilename == temp_file.name
 
     def test_get_logger_without_setup(self):
-        """Test that get_logger raises a RuntimeError if setup_logging hasn't been called."""
+        """get_logger() falls back to a default logger when setup_logging() has not run.
+
+        Cycle 3c: callers (notably converter __init__) should be able to use
+        ``logger or get_logger()`` without first calling ``setup_logging()``.
+        Previously this raised RuntimeError; now it returns a usable logger.
+        """
         # Reset the logger before testing
         import common.logging
+
         common.logging.logger = None
 
-        # Try to get the logger without setting it up
-        with pytest.raises(RuntimeError) as excinfo:
-            get_logger()
-        assert "Logger not initialized" in str(excinfo.value)
+        # Should not raise
+        logger = get_logger()
+        assert logger is not None
+        # And the module-level cache should now be populated
+        assert common.logging.logger is logger
 
     def test_setup_logging_invalid_file(self, monkeypatch, capsys):
         """Test that setup_logging handles invalid log files gracefully."""
         # Reset the logger before testing
         import common.logging
+
         common.logging.logger = None
 
         # Store the original FileHandler
@@ -79,7 +88,7 @@ class TestLogging:
 
         # Mock logging.FileHandler to raise an exception
         def mock_file_handler(*args, **kwargs):
-            raise IOError("Mock file handler error")
+            raise OSError("Mock file handler error")
 
         monkeypatch.setattr(logging, "FileHandler", mock_file_handler)
 

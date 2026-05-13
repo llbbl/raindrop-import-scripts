@@ -1,7 +1,9 @@
-import os
-import pytest
-import tempfile
 import argparse
+import os
+import tempfile
+
+import pytest
+
 from common.validation import validate_input_file, validate_output_file
 
 
@@ -31,8 +33,8 @@ class TestValidation:
         """Test that validate_input_file raises an exception for a file that's not readable."""
         with tempfile.NamedTemporaryFile() as temp_file:
             # Mock os.access to return False for read access
-            monkeypatch.setattr(os, "access", lambda path, mode: False if mode == os.R_OK else True)
-            
+            monkeypatch.setattr(os, "access", lambda path, mode: mode != os.R_OK)
+
             with pytest.raises(argparse.ArgumentTypeError) as excinfo:
                 validate_input_file(temp_file.name)
             assert "Input file is not readable" in str(excinfo.value)
@@ -53,8 +55,8 @@ class TestValidation:
         """Test that validate_output_file raises an exception for a path in a directory that's not writable."""
         with tempfile.TemporaryDirectory() as temp_dir:
             # Mock os.access to return False for write access
-            monkeypatch.setattr(os, "access", lambda path, mode: False if mode == os.W_OK else True)
-            
+            monkeypatch.setattr(os, "access", lambda path, mode: mode != os.W_OK)
+
             output_path = os.path.join(temp_dir, "output.csv")
             with pytest.raises(argparse.ArgumentTypeError) as excinfo:
                 validate_output_file(output_path)

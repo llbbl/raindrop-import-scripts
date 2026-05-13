@@ -22,10 +22,9 @@ Examples:
 
 import argparse
 import sys
-from typing import List, Optional
 
-from common.config import load_config, apply_config_to_args
-from common.logging import setup_logging, get_logger
+from common.config import apply_config_to_args, load_config
+from common.logging import get_logger, setup_logging
 from common.plugins import PluginRegistry
 
 
@@ -63,7 +62,7 @@ def create_main_parser() -> argparse.ArgumentParser:
     )
 
     # Add filtering arguments
-    filtering_group = parser.add_argument_group('Filtering options')
+    filtering_group = parser.add_argument_group("Filtering options")
     filtering_group.add_argument(
         "--filter-tag",
         metavar="TAG",
@@ -110,7 +109,7 @@ def create_main_parser() -> argparse.ArgumentParser:
     )
 
     # Add field mapping arguments
-    mapping_group = parser.add_argument_group('Field mapping options')
+    mapping_group = parser.add_argument_group("Field mapping options")
     mapping_group.add_argument(
         "--field-map",
         metavar="MAPFILE",
@@ -151,7 +150,7 @@ def create_main_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(args: Optional[List[str]] = None) -> None:
+def main(args: list[str] | None = None) -> None:
     """
     Main entry point for the unified CLI.
 

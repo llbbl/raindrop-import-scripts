@@ -2,7 +2,7 @@
 Configuration handling for import scripts.
 
 This module provides functionality to load and apply configuration settings
-from a configuration file or environment variables. The configuration can specify 
+from a configuration file or environment variables. The configuration can specify
 default values for command-line arguments and other settings.
 
 Configuration is loaded from the following sources, in order of precedence:
@@ -13,8 +13,9 @@ Configuration is loaded from the following sources, in order of precedence:
 
 import argparse
 import os
+from typing import Any
+
 import yaml
-from typing import Any, Dict, Optional
 
 try:
     from dotenv import load_dotenv
@@ -24,8 +25,10 @@ except ImportError:
         """Fallback function if python-dotenv is not installed."""
         return False
 
-from common.logging import get_logger, setup_logging
+
 import logging
+
+from common.logging import get_logger, setup_logging
 
 
 def _get_or_setup_logger() -> logging.Logger:
@@ -95,7 +98,7 @@ def get_env_file_path() -> str:
     return ""
 
 
-def load_env_vars() -> Dict[str, Any]:
+def load_env_vars() -> dict[str, Any]:
     """
     Load environment variables from a .env file.
 
@@ -143,7 +146,7 @@ def load_env_vars() -> Dict[str, Any]:
         return {}
 
 
-def load_config(config_file: Optional[str] = None) -> Dict[str, Any]:
+def load_config(config_file: str | None = None) -> dict[str, Any]:
     """
     Load configuration from a YAML file and environment variables.
 
@@ -168,7 +171,14 @@ def load_config(config_file: Optional[str] = None) -> Dict[str, Any]:
         # Create a structure similar to the YAML config
         for key, value in env_vars.items():
             parts = key.split("-")
-            if len(parts) > 1 and parts[0] in ["global", "pocket", "evernote", "chrome", "firefox", "raindrop"]:
+            if len(parts) > 1 and parts[0] in [
+                "global",
+                "pocket",
+                "evernote",
+                "chrome",
+                "firefox",
+                "raindrop",
+            ]:
                 # Handle source-specific config like RAINDROP_POCKET_INPUT_FILE
                 source = parts[0]
                 if source not in config:
@@ -187,7 +197,7 @@ def load_config(config_file: Optional[str] = None) -> Dict[str, Any]:
 
     if config_file:
         try:
-            with open(config_file, "r") as f:
+            with open(config_file) as f:
                 file_config = yaml.safe_load(f)
 
             if not isinstance(file_config, dict):
@@ -205,7 +215,7 @@ def load_config(config_file: Optional[str] = None) -> Dict[str, Any]:
     return config
 
 
-def apply_config_to_args(args: argparse.Namespace, config: Dict[str, Any]) -> argparse.Namespace:
+def apply_config_to_args(args: argparse.Namespace, config: dict[str, Any]) -> argparse.Namespace:
     """
     Apply configuration settings to command-line arguments.
 
@@ -249,9 +259,15 @@ def apply_config_to_args(args: argparse.Namespace, config: Dict[str, Any]) -> ar
         arg_key = key.replace("-", "_")
 
         # Source-specific config overrides global config even if already set from global
-        if hasattr(args, arg_key) and key in global_config and getattr(args, arg_key) == global_config[key]:
+        if (
+            hasattr(args, arg_key)
+            and key in global_config
+            and getattr(args, arg_key) == global_config[key]
+        ):
             setattr(args, arg_key, value)
-            logger.debug(f"Overrode global configuration with {args.source} configuration: {key}={value}")
+            logger.debug(
+                f"Overrode global configuration with {args.source} configuration: {key}={value}"
+            )
         # Apply source-specific config if not explicitly set on command line
         elif not hasattr(args, arg_key) or getattr(args, arg_key) is None:
             setattr(args, arg_key, value)

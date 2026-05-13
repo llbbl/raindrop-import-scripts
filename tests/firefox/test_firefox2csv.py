@@ -1,66 +1,43 @@
+import argparse
 import os
 import sys
-import pytest
-import argparse
 import tempfile
-import json
-import datetime
-from unittest.mock import patch, MagicMock, mock_open
-from firefox.firefox2csv import (
-    parse_command_line_args,
-    read_json_file,
-    process_bookmark_node,
-    extract_bookmarks,
-    write_csv_file,
-    convert_json,
-    main
-)
+from unittest.mock import MagicMock, mock_open, patch
+
+import pytest
+
+from firefox.firefox2csv import FirefoxBookmarkConverter, main, parse_command_line_args
 
 
-class TestFirefox2Csv:
-    """Tests for the firefox2csv module."""
+class TestFirefoxBookmarkConverter:
+    """Tests for the FirefoxBookmarkConverter class."""
 
     def setup_method(self):
         """Set up the test environment."""
         # Set up a logger mock
-        self.logger_patcher = patch("firefox.firefox2csv.logger")
+        self.logger_patcher = patch("firefox.firefox2csv.get_logger")
         self.mock_logger = self.logger_patcher.start()
+        self.mock_logger.return_value = MagicMock()
+
+        # Create a converter instance for testing
+        self.converter = FirefoxBookmarkConverter("input.json", "output.csv", self.mock_logger)
 
     def teardown_method(self):
         """Tear down the test environment."""
         self.logger_patcher.stop()
 
-    @patch("argparse.ArgumentParser")
-    def test_parse_command_line_args(self, mock_arg_parser):
-        """Test that parse_command_line_args correctly parses arguments."""
-        # Set up mocks
-        mock_parser = MagicMock()
-        mock_arg_parser.return_value = mock_parser
-        mock_args = argparse.Namespace(input_file="input.json", output_file="output.csv")
-        mock_parser.parse_args.return_value = mock_args
-
-        # Test with valid arguments
-        args = parse_command_line_args([
-            "--input-file", "input.json",
-            "--output-file", "output.csv"
-        ])
-
-        # Check that the returned args are correct
-        assert args.input_file == "input.json"
-        assert args.output_file == "output.csv"
-
     @patch("builtins.open", new_callable=mock_open, read_data='{"children": []}')
     def test_read_json_file(self, mock_file):
         """Test that read_json_file correctly reads a file."""
-        content = read_json_file("input.json")
-        mock_file.assert_called_once_with("input.json", "r", encoding="utf-8")
+        content = self.converter.read_json_file()
+        mock_file.assert_called_once_with("input.json", encoding="utf-8")
         assert content == {"children": []}
 
-    @patch("builtins.open", side_effect=IOError("File not found"))
+    @patch("builtins.open", side_effect=OSError("File not found"))
     def test_read_json_file_error(self, mock_file):
         """Test that read_json_file handles errors correctly."""
         with pytest.raises(IOError):
-            read_json_file("nonexistent.json")
+            self.converter.read_json_file()
 
     def test_process_bookmark_node_bookmark(self):
         """Test that process_bookmark_node correctly processes a bookmark node."""
@@ -69,11 +46,11 @@ class TestFirefox2Csv:
             "type": "bookmark",
             "title": "Example",
             "uri": "http://example.com",
-            "dateAdded": "1577836800000000"  # Firefox timestamp (microseconds since Jan 1, 1970)
+            "dateAdded": "1577836800000000",  # Firefox timestamp (microseconds since Jan 1, 1970)
         }
 
         # Process the node
-        bookmarks = process_bookmark_node(node, ["Folder1", "Folder2"])
+        bookmarks = self.converter.process_bookmark_node(node, ["Folder1", "Folder2"])
 
         # Check the result
         assert len(bookmarks) == 1
@@ -93,19 +70,19 @@ class TestFirefox2Csv:
                     "type": "bookmark",
                     "title": "Example 1",
                     "uri": "http://example1.com",
-                    "dateAdded": "1577836800000000"
+                    "dateAdded": "1577836800000000",
                 },
                 {
                     "type": "bookmark",
                     "title": "Example 2",
                     "uri": "http://example2.com",
-                    "dateAdded": "1577836800000000"
-                }
-            ]
+                    "dateAdded": "1577836800000000",
+                },
+            ],
         }
 
         # Process the node
-        bookmarks = process_bookmark_node(node, ["Folder1", "Folder2"])
+        bookmarks = self.converter.process_bookmark_node(node, ["Folder1", "Folder2"])
 
         # Check the result
         assert len(bookmarks) == 2
@@ -129,9 +106,9 @@ class TestFirefox2Csv:
                             "type": "bookmark",
                             "title": "Example 1",
                             "uri": "http://example1.com",
-                            "dateAdded": "1577836800000000"
+                            "dateAdded": "1577836800000000",
                         }
-                    ]
+                    ],
                 },
                 {
                     "type": "folder",
@@ -141,15 +118,15 @@ class TestFirefox2Csv:
                             "type": "bookmark",
                             "title": "Example 2",
                             "uri": "http://example2.com",
-                            "dateAdded": "1577836800000000"
+                            "dateAdded": "1577836800000000",
                         }
-                    ]
-                }
+                    ],
+                },
             ]
         }
 
         # Extract bookmarks
-        bookmarks = extract_bookmarks(data)
+        bookmarks = self.converter.extract_bookmarks(data)
 
         # Check the result
         assert len(bookmarks) == 2
@@ -171,15 +148,25 @@ class TestFirefox2Csv:
 
         # Create records
         records = [
-            {"title": "Example 1", "url": "http://example1.com", "created": "01/01/2020 00:00:00", "tags": "Folder1,Folder2"},
-            {"title": "Example 2", "url": "http://example2.com", "created": "01/01/2020 00:00:00", "tags": "Folder3"}
+            {
+                "title": "Example 1",
+                "url": "http://example1.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder1,Folder2",
+            },
+            {
+                "title": "Example 2",
+                "url": "http://example2.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder3",
+            },
         ]
 
         # Write records
-        write_csv_file("output.csv", records)
+        self.converter.write_csv_file(records)
 
         # Check that the file was opened
-        mock_file.assert_called_once_with("output.csv", "w", encoding="utf-8", newline="")
+        mock_file.assert_called_once_with("output.csv", "w", newline="", encoding="utf-8")
 
         # Check that the writer was created with the correct fieldnames
         mock_dict_writer.assert_called_once()
@@ -187,89 +174,292 @@ class TestFirefox2Csv:
 
         # Check that the header and rows were written
         mock_writer.writeheader.assert_called_once()
-        mock_writer.writerows.assert_called_once_with(records)
+        mock_writer.writerow.assert_called()
+
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("csv.DictWriter")
+    def test_write_csv_file_uses_quote_all(self, mock_dict_writer, mock_file):
+        """write_csv_file must configure DictWriter with QUOTE_ALL semantics."""
+        import csv as csv_module
+
+        mock_dict_writer.return_value = MagicMock()
+        records = [
+            {
+                "title": "Example",
+                "url": "http://example.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder1",
+            }
+        ]
+
+        self.converter.write_csv_file(records)
+        kwargs = mock_dict_writer.call_args.kwargs
+        assert kwargs.get("quoting") == csv_module.QUOTE_ALL
+        assert kwargs.get("delimiter") == ","
+        assert kwargs.get("lineterminator") == "\n"
+        assert kwargs.get("quotechar") == '"'
+
+    def test_write_csv_file_applies_field_mappings(self):
+        """write_csv_file should call map_rows when field_mappings is provided."""
+        records = [
+            {
+                "title": "Example",
+                "url": "http://example.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder1",
+            }
+        ]
+        field_mappings = {"title": "renamed_title", "url": "renamed_url"}
+
+        with (
+            patch("firefox.firefox2csv.map_rows") as mock_map_rows,
+            patch("builtins.open", new_callable=mock_open),
+            patch("csv.DictWriter") as mock_dict_writer,
+        ):
+            mock_map_rows.return_value = [
+                {"renamed_title": "Example", "renamed_url": "http://example.com"}
+            ]
+            mock_dict_writer.return_value = MagicMock()
+            self.converter.write_csv_file(records, field_mappings=field_mappings)
+
+            mock_map_rows.assert_called_once()
+            assert list(mock_dict_writer.call_args.kwargs["fieldnames"]) == [
+                "renamed_title",
+                "renamed_url",
+            ]
+
+    def test_write_csv_file_preview_mode(self):
+        """write_csv_file should invoke preview_items with the configured limit + kwargs."""
+        records = [
+            {
+                "title": "Example",
+                "url": "http://example.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "",
+            }
+        ]
+        with (
+            patch("firefox.firefox2csv.preview_items") as mock_preview,
+            patch("builtins.open", new_callable=mock_open),
+            patch("csv.DictWriter"),
+        ):
+            self.converter.write_csv_file(records, preview=True, preview_limit=5)
+            mock_preview.assert_called_once()
+            kwargs = mock_preview.call_args.kwargs
+            assert kwargs["limit"] == 5
+            assert kwargs["title_field"] == "title"
+            assert kwargs["url_field"] == "url"
+            assert kwargs["tags_field"] == "tags"
+            assert kwargs["created_field"] == "created"
 
     def test_write_csv_file_dry_run(self):
         """Test that write_csv_file in dry-run mode doesn't write to a file."""
         # Create records
         records = [
-            {"title": "Example 1", "url": "http://example1.com", "created": "01/01/2020 00:00:00", "tags": "Folder1,Folder2"},
-            {"title": "Example 2", "url": "http://example2.com", "created": "01/01/2020 00:00:00", "tags": "Folder3"}
+            {
+                "title": "Example 1",
+                "url": "http://example1.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder1,Folder2",
+            },
+            {
+                "title": "Example 2",
+                "url": "http://example2.com",
+                "created": "01/01/2020 00:00:00",
+                "tags": "Folder3",
+            },
         ]
 
         # Write records in dry-run mode
         with patch("builtins.open") as mock_open:
-            write_csv_file("output.csv", records, dry_run=True)
+            self.converter.write_csv_file(records, dry_run=True)
             mock_open.assert_not_called()
 
-    @patch("firefox.firefox2csv.read_json_file")
-    @patch("firefox.firefox2csv.extract_bookmarks")
-    @patch("firefox.firefox2csv.write_csv_file")
-    def test_convert_json(self, mock_write_csv, mock_extract_bookmarks, mock_read_file):
-        """Test that convert_json correctly orchestrates the conversion process."""
+    @patch("os.access", return_value=True)
+    @patch("os.path.isfile", return_value=True)
+    @patch("os.path.exists", return_value=True)
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter.read_json_file")
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter.extract_bookmarks")
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter.write_csv_file")
+    def test_convert(
+        self,
+        mock_write_csv,
+        mock_extract_bookmarks,
+        mock_read_file,
+        mock_exists,
+        mock_isfile,
+        mock_access,
+    ):
+        """Test that convert correctly orchestrates the conversion process."""
         # Set up mocks
         mock_read_file.return_value = {"children": []}
         mock_bookmarks = [{"title": "Example 1"}, {"title": "Example 2"}]
         mock_extract_bookmarks.return_value = mock_bookmarks
 
-        # Create args
-        args = argparse.Namespace(
-            input_file="input.json",
-            output_file="output.csv",
-            dry_run=False
-        )
-
         # Convert
-        convert_json(args)
+        self.converter.convert()
 
-        # Check that the functions were called with the correct arguments
-        mock_read_file.assert_called_once_with("input.json")
+        # Check that the methods were called with the correct arguments
+        mock_read_file.assert_called_once()
         mock_extract_bookmarks.assert_called_once_with({"children": []})
-        mock_write_csv.assert_called_once_with("output.csv", mock_bookmarks, False)
+        mock_write_csv.assert_called_once_with(mock_bookmarks, None, False, 10, False)
 
-    @patch("firefox.firefox2csv.read_json_file")
-    @patch("firefox.firefox2csv.extract_bookmarks")
-    @patch("firefox.firefox2csv.write_csv_file")
-    def test_convert_json_no_bookmarks(self, mock_write_csv, mock_extract_bookmarks, mock_read_file):
-        """Test that convert_json handles the case where no bookmarks are found."""
+    @patch("os.access", return_value=True)
+    @patch("os.path.isfile", return_value=True)
+    @patch("os.path.exists", return_value=True)
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter.read_json_file")
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter.extract_bookmarks")
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter.write_csv_file")
+    def test_convert_no_bookmarks(
+        self,
+        mock_write_csv,
+        mock_extract_bookmarks,
+        mock_read_file,
+        mock_exists,
+        mock_isfile,
+        mock_access,
+    ):
+        """Test that convert handles the case where no bookmarks are found."""
         # Set up mocks
         mock_read_file.return_value = {"children": []}
         mock_extract_bookmarks.return_value = []
 
-        # Create args
-        args = argparse.Namespace(
-            input_file="input.json",
-            output_file="output.csv",
-            dry_run=False
+        # Convert
+        self.converter.convert()
+
+        # Check that write_csv_file was called with an empty list
+        mock_write_csv.assert_called_once_with([], None, False, 10, False)
+
+
+class TestCommandLine:
+    """Tests for command line functionality."""
+
+    @patch("argparse.ArgumentParser")
+    def test_parse_command_line_args(self, mock_arg_parser):
+        """Test that parse_command_line_args correctly parses arguments."""
+        # Set up mocks
+        mock_parser = MagicMock()
+        mock_arg_parser.return_value = mock_parser
+        mock_args = argparse.Namespace(input_file="input.json", output_file="output.csv")
+        mock_parser.parse_args.return_value = mock_args
+
+        # Test with valid arguments
+        args = parse_command_line_args(
+            ["--input-file", "input.json", "--output-file", "output.csv"]
         )
 
-        # Convert
-        convert_json(args)
+        # Check that the returned args are correct
+        assert args.input_file == "input.json"
+        assert args.output_file == "output.csv"
 
-        # Check that write_csv_file was not called
-        mock_write_csv.assert_not_called()
-
+    @patch("firefox.firefox2csv.apply_field_mappings")
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter")
     @patch("firefox.firefox2csv.parse_command_line_args")
     @patch("firefox.firefox2csv.setup_logging")
     @patch("firefox.firefox2csv.get_logger")
-    @patch("firefox.firefox2csv.convert_json")
-    def test_main(self, mock_convert_json, mock_get_logger, mock_setup_logging, mock_parse_args):
-        """Test that main correctly sets up the environment and calls convert_json."""
-        # Set up mocks
+    def test_main(
+        self,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_parse_args,
+        mock_converter_class,
+        mock_apply_field_mappings,
+    ):
+        """Test that main correctly sets up and runs the converter."""
         mock_args = argparse.Namespace(
             input_file="input.json",
             output_file="output.csv",
-            log_file="log.txt"
+            preview=False,
+            preview_limit=10,
+            dry_run=False,
+            log_file=None,
         )
         mock_parse_args.return_value = mock_args
-        mock_logger = MagicMock()
-        mock_get_logger.return_value = mock_logger
+        mock_apply_field_mappings.return_value = {"title": "title"}
+        mock_converter = MagicMock()
+        mock_converter_class.return_value = mock_converter
 
-        # Call main
         main()
 
-        # Check that the functions were called with the correct arguments
-        mock_parse_args.assert_called_once_with(sys.argv[1:])
-        mock_setup_logging.assert_called_once_with("log.txt")
-        mock_get_logger.assert_called_once()
-        mock_convert_json.assert_called_once_with(mock_args)
+        mock_setup_logging.assert_called_once_with(None)
+        mock_apply_field_mappings.assert_called_once_with(mock_args)
+        mock_converter_class.assert_called_once_with(
+            "input.json", "output.csv", mock_get_logger.return_value
+        )
+        mock_converter.convert.assert_called_once_with(
+            field_mappings={"title": "title"},
+            preview=False,
+            preview_limit=10,
+            dry_run=False,
+        )
+
+    @patch("firefox.firefox2csv.apply_field_mappings")
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter")
+    @patch("firefox.firefox2csv.setup_logging")
+    @patch("firefox.firefox2csv.get_logger")
+    def test_main_uses_real_parse_command_line_args(
+        self,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_converter_class,
+        mock_apply_field_mappings,
+    ):
+        """End-to-end: main must work with the real argparse-produced namespace.
+
+        Regression: previously main() referenced ``args.field_mappings`` which
+        does not exist on the argparse namespace, causing AttributeError on
+        every CLI invocation. This test exercises the real parser.
+        """
+        mock_apply_field_mappings.return_value = {}
+        mock_converter = MagicMock()
+        mock_converter_class.return_value = mock_converter
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as input_f:
+            input_f.write('{"children": []}')
+            input_path = input_f.name
+        output_path = input_path + ".csv"
+
+        try:
+            with patch.object(
+                sys,
+                "argv",
+                ["firefox2csv.py", "--input-file", input_path, "--output-file", output_path],
+            ):
+                main()
+        finally:
+            os.unlink(input_path)
+            if os.path.exists(output_path):
+                os.unlink(output_path)
+
+        mock_converter_class.assert_called_once_with(
+            input_path, output_path, mock_get_logger.return_value
+        )
+        # Defensive arg access: missing attrs default cleanly
+        kwargs = mock_converter.convert.call_args.kwargs
+        assert kwargs["preview"] is False
+        assert kwargs["preview_limit"] == 10
+        assert kwargs["dry_run"] is False
+
+    @patch("firefox.firefox2csv.apply_field_mappings")
+    @patch("firefox.firefox2csv.FirefoxBookmarkConverter")
+    @patch("firefox.firefox2csv.parse_command_line_args")
+    @patch("firefox.firefox2csv.setup_logging")
+    @patch("firefox.firefox2csv.get_logger")
+    def test_main_forwards_log_file(
+        self,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_parse_args,
+        mock_converter_class,
+        mock_apply_field_mappings,
+    ):
+        """The --log-file argument must be forwarded to setup_logging."""
+        mock_parse_args.return_value = argparse.Namespace(
+            input_file="input.json",
+            output_file="output.csv",
+            log_file="/tmp/firefox.log",
+        )
+        mock_apply_field_mappings.return_value = {}
+        mock_converter_class.return_value = MagicMock()
+        main()
+        mock_setup_logging.assert_called_once_with("/tmp/firefox.log")

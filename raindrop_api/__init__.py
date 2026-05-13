@@ -5,9 +5,7 @@ This module provides a plugin for directly importing bookmarks into Raindrop.io 
 """
 
 import argparse
-from typing import List, Optional
 
-from common.cli import create_base_parser, parse_args
 from common.plugins import BaseImportPlugin, register_plugin
 from raindrop_api.api_import import import_to_raindrop
 
@@ -55,19 +53,21 @@ class RaindropApiImportPlugin(BaseImportPlugin):
         parser = argparse.ArgumentParser(description=cls.get_description(), add_help=False)
 
         # Add API-specific arguments
+        # Either OAuth (--client-id + --client-secret) or --api-token must be
+        # provided; mutual exclusion is enforced at runtime in import_to_raindrop.
         parser.add_argument(
             "--client-id",
             metavar="CLIENT_ID",
             help="Raindrop.io OAuth client ID",
             type=str,
-            required=True,
+            required=False,
         )
         parser.add_argument(
             "--client-secret",
             metavar="CLIENT_SECRET",
             help="Raindrop.io OAuth client secret",
             type=str,
-            required=True,
+            required=False,
         )
         parser.add_argument(
             "--api-token",

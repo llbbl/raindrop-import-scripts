@@ -1,7 +1,8 @@
-import sys
-import pytest
 import argparse
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
+
+import pytest
+
 from raindrop_import import create_main_parser, main
 
 
@@ -33,9 +34,16 @@ class TestRaindropImport:
     @patch("raindrop_import.get_logger")
     @patch("raindrop_import.load_config")
     @patch("raindrop_import.apply_config_to_args")
-    def test_main_no_plugins(self, mock_apply_config, mock_load_config, mock_get_logger, 
-                            mock_setup_logging, mock_create_parser, mock_get_plugins, 
-                            mock_discover_plugins):
+    def test_main_no_plugins(
+        self,
+        mock_apply_config,
+        mock_load_config,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_create_parser,
+        mock_get_plugins,
+        mock_discover_plugins,
+    ):
         """Test that main exits when no plugins are found."""
         # Set up mocks
         mock_get_plugins.return_value = {}
@@ -60,9 +68,17 @@ class TestRaindropImport:
     @patch("raindrop_import.get_logger")
     @patch("raindrop_import.load_config")
     @patch("raindrop_import.apply_config_to_args")
-    def test_main_unknown_source(self, mock_apply_config, mock_load_config, mock_get_logger, 
-                                mock_setup_logging, mock_create_parser, mock_get_plugin, 
-                                mock_get_plugins, mock_discover_plugins):
+    def test_main_unknown_source(
+        self,
+        mock_apply_config,
+        mock_load_config,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_create_parser,
+        mock_get_plugin,
+        mock_get_plugins,
+        mock_discover_plugins,
+    ):
         """Test that main exits when an unknown source is specified."""
         # Set up mocks
         mock_plugin = MagicMock()
@@ -73,10 +89,7 @@ class TestRaindropImport:
         mock_create_parser.return_value = mock_parser
 
         mock_args = argparse.Namespace(
-            source="unknown",
-            log_file=None,
-            config_file=None,
-            dry_run=False
+            source="unknown", log_file=None, config_file=None, dry_run=False
         )
         mock_parser.parse_args.return_value = mock_args
 
@@ -113,9 +126,17 @@ class TestRaindropImport:
     @patch("raindrop_import.get_logger")
     @patch("raindrop_import.load_config")
     @patch("raindrop_import.apply_config_to_args")
-    def test_main_success(self, mock_apply_config, mock_load_config, mock_get_logger, 
-                        mock_setup_logging, mock_create_parser, mock_get_plugin, 
-                        mock_get_plugins, mock_discover_plugins):
+    def test_main_success(
+        self,
+        mock_apply_config,
+        mock_load_config,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_create_parser,
+        mock_get_plugin,
+        mock_get_plugins,
+        mock_discover_plugins,
+    ):
         """Test that main successfully calls the plugin's convert method."""
         # Set up mocks
         mock_plugin = MagicMock()
@@ -126,10 +147,7 @@ class TestRaindropImport:
         mock_create_parser.return_value = mock_parser
 
         mock_args = argparse.Namespace(
-            source="mock",
-            log_file="log.txt",
-            config_file="config.yaml",
-            dry_run=True
+            source="mock", log_file="log.txt", config_file="config.yaml", dry_run=True
         )
         mock_parser.parse_args.return_value = mock_args
 
@@ -165,9 +183,17 @@ class TestRaindropImport:
     @patch("raindrop_import.get_logger")
     @patch("raindrop_import.load_config")
     @patch("raindrop_import.apply_config_to_args")
-    def test_main_convert_error(self, mock_apply_config, mock_load_config, mock_get_logger, 
-                                mock_setup_logging, mock_create_parser, mock_get_plugin, 
-                                mock_get_plugins, mock_discover_plugins):
+    def test_main_convert_error(
+        self,
+        mock_apply_config,
+        mock_load_config,
+        mock_get_logger,
+        mock_setup_logging,
+        mock_create_parser,
+        mock_get_plugin,
+        mock_get_plugins,
+        mock_discover_plugins,
+    ):
         """Test that main handles errors from the plugin's convert method."""
         # Set up mocks
         mock_plugin = MagicMock()
@@ -179,10 +205,7 @@ class TestRaindropImport:
         mock_create_parser.return_value = mock_parser
 
         mock_args = argparse.Namespace(
-            source="mock",
-            log_file=None,
-            config_file=None,
-            dry_run=False
+            source="mock", log_file=None, config_file=None, dry_run=False
         )
         mock_parser.parse_args.return_value = mock_args
 
