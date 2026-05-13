@@ -18,7 +18,7 @@ requests = "^2.32.4"
 python-dotenv = "^1.1.0"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.5"
+pytest = ">=8.3.5,<10.0.0"
 pytest-cov = "^6.1.1"
 ruff = "^0.15.12"
 ty = "^0.0.35"
