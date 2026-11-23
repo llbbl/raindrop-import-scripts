@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "*"}]
 
 [tool.poetry.dependencies]
-python = "^3.11"
+python = "^3.11.5"
 python-dateutil = "^2.9.0.post0"
 lxml = "^6.1.0"
 html2text = "^2025.4.15"
